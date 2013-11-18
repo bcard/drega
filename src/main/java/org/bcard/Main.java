@@ -48,12 +48,12 @@ public class Main extends Verticle {
 
 					@Override
 					public void handle(Message event) {
-						vertx.setTimer(1, InputHandler.this);
+						vertx.setTimer(100, InputHandler.this);
 					}
 
 				});
 			} else {
-				vertx.setTimer(1, InputHandler.this);
+				vertx.setTimer(100, InputHandler.this);
 			}
 		}
 		
