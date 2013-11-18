@@ -21,7 +21,6 @@ public class CommandProcessor extends Verticle {
 
 			@Override
 			public void handle(Message<String> event) {
-				container.logger().info("received command: "+event.body());
 				String text = event.body();
 				try {
 					ICommand command = CommandParser.parse(text);
@@ -30,6 +29,7 @@ public class CommandProcessor extends Verticle {
 				catch (ParseException e) {
 					container.logger().error("Invalid Command:"+text);
 				}
+				event.reply();
 			}
 			
 		});

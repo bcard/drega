@@ -3,18 +3,17 @@ package org.bcard.command;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.platform.Container;
 
-/**
- * Exits the Application and the JVM.
- * 
- * @author bcard
- *
- */
-public class Exit implements ICommand {
+public class PrintSignal implements ICommand {
+	
+	private String id;
+	
+	public PrintSignal(String id) {
+		this.id = id;
+	}
 
 	@Override
 	public void execute(Container container, Vertx vertx) {
-		container.exit();
-		container.logger().info("goodbye");
+		vertx.eventBus().publish("signals."+id, "print");
 	}
 
 }

@@ -12,7 +12,7 @@ public class CommandParser {
 	
 	public static final String ASSIGNMENT_WITH_VALUE = "[a-zA-Z0-9]+\\s?=\\s?\\d+";
 
-	public static final String ASSIGNMENT_WITHOUT_VALUE = "[a-zA-Z0-9]+";
+	public static final String ASSIGNMENT_WITHOUT_VALUE = "\\s?[a-zA-Z0-9]+\\s?";
 	
 	public static final String EXIT = "exit";
 	
@@ -23,6 +23,8 @@ public class CommandParser {
 			command = new CreateSignal(vals[0].trim(), Long.parseLong(vals[1].trim()));
 		} else if (matches(EXIT, input)) {
 			command = new Exit();
+		} else if (matches(ASSIGNMENT_WITHOUT_VALUE, input)) {
+			command = new PrintSignal(input.trim());
 		}
 		
 		if (command == null) {

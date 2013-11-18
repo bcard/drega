@@ -2,7 +2,6 @@ package org.bcard.command;
 
 import static org.junit.Assert.*;
 
-import org.hamcrest.core.IsInstanceOf;
 import org.junit.Test;
 import static org.hamcrest.core.IsInstanceOf.*;
 
@@ -47,6 +46,16 @@ public class CommandParserTest {
 	@Test
 	public void testParsesToExitCommand() {
 		assertThat(parse("exit"), instanceOf(Exit.class));
+	}
+	
+	@Test
+	public void testParseIdReturnsPrintSignalCommand() {
+		assertThat(parse("x1"), instanceOf(PrintSignal.class));
+	}
+	
+	@Test
+	public void testParseIdWithWhitespaceReturnsPrintSignalCommand() {
+		assertThat(parse("x1 "), instanceOf(PrintSignal.class));
 	}
 	
 	/// ------------- Helper methods --------------- /// 

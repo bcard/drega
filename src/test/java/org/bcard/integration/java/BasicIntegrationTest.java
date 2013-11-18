@@ -17,6 +17,12 @@ package org.bcard.integration.java;
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
 
+import static org.vertx.testtools.VertxAssert.assertEquals;
+import static org.vertx.testtools.VertxAssert.assertNotNull;
+import static org.vertx.testtools.VertxAssert.assertTrue;
+import static org.vertx.testtools.VertxAssert.testComplete;
+
+import org.junit.Ignore;
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -26,11 +32,10 @@ import org.vertx.java.core.http.HttpServer;
 import org.vertx.java.core.http.HttpServerRequest;
 import org.vertx.testtools.TestVerticle;
 
-import static org.vertx.testtools.VertxAssert.*;
-
 /**
  * Simple integration test which shows tests deploying other verticles, using the Vert.x API etc
  */
+@Ignore
 public class BasicIntegrationTest extends TestVerticle {
 
   @Test
