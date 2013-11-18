@@ -12,4 +12,11 @@ import org.vertx.java.platform.Verticle;
  */
 public class Signal extends Verticle {
 
+	@Override
+	public void start() {
+		String id = container.config().getString("id");
+		container.logger().info("Starting Signal "+id);
+	}
+	
+	
 }

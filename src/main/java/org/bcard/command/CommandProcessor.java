@@ -6,7 +6,7 @@ import org.vertx.java.platform.Verticle;
 
 /**
  * The command processor parses and executes commands written to the
- * {@code command} channel. See {@link CommandParser} for a description of the
+ * {@code command} address. See {@link CommandParser} for a description of the
  * command syntax.
  * 
  * @author bcard
@@ -25,7 +25,7 @@ public class CommandProcessor extends Verticle {
 				String text = event.body();
 				try {
 					ICommand command = CommandParser.parse(text);
-					command.execute();
+					command.execute(container, vertx);
 				}
 				catch (ParseException e) {
 					container.logger().error("Invalid Command:"+text);

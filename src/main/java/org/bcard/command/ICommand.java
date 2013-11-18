@@ -1,5 +1,8 @@
 package org.bcard.command;
 
+import org.vertx.java.core.Vertx;
+import org.vertx.java.platform.Container;
+
 /**
  * Interface fo all of our commands.
  * 
@@ -15,5 +18,5 @@ public interface ICommand {
 	 * <li> Print what they are doing to the logger
 	 * </ul>
 	 */
-	public void execute();
+	public void execute(Container container, Vertx vertx);
 }

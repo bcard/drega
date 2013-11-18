@@ -25,7 +25,6 @@ public class Main extends Verticle {
 				System.out.print("> ");
 				String input = in.nextLine();
 				if (!input.isEmpty()) {
-					container.logger().debug("You typed in: " + input);
 					vertx.eventBus().publish("command", input);
 				}
 			}
