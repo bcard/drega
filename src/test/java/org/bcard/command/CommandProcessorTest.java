@@ -12,6 +12,8 @@ import org.mockito.MockitoAnnotations;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.eventbus.EventBus;
+import org.vertx.java.core.logging.Logger;
+import org.vertx.java.platform.Container;
 
 /**
  * Tests that commands are parsed and executed by the processor.
@@ -27,10 +29,17 @@ public class CommandProcessorTest {
 	@Mock
 	EventBus eventBus;
 	
+	@Mock 
+	Container container;
+	
+	@Mock
+	Logger logger;
+	
 	@Before
 	public void setup() {
 		MockitoAnnotations.initMocks(this);
 		when(vertx.eventBus()).thenReturn(eventBus);
+		when(container.logger()).thenReturn(logger);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -38,6 +47,7 @@ public class CommandProcessorTest {
 	public void testCommandChannelRegistered() {
 		CommandProcessor processor = new CommandProcessor();
 		processor.setVertx(vertx);
+		processor.setContainer(container);
 		
 		processor.start();
 		

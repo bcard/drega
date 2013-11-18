@@ -2,7 +2,9 @@ package org.bcard.command;
 
 import static org.junit.Assert.*;
 
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.Test;
+import static org.hamcrest.core.IsInstanceOf.*;
 
 /**
  * Tests our command parsing input for the repl.
@@ -40,6 +42,11 @@ public class CommandParserTest {
 	@Test(expected=ParseException.class)
 	public void testJustEqualsNotAllowed() {
 		assertCreateParsesToIdAndValue("=", null, 0);
+	}
+	
+	@Test
+	public void testParsesToExitCommand() {
+		assertThat(parse("exit"), instanceOf(Exit.class));
 	}
 	
 	/// ------------- Helper methods --------------- /// 

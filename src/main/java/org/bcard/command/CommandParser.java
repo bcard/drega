@@ -14,13 +14,15 @@ public class CommandParser {
 
 	public static final String ASSIGNMENT_WITHOUT_VALUE = "[a-zA-Z0-9]+";
 	
+	public static final String EXIT = "exit";
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
 		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
 			String[] vals = input.split("=");
 			command = new CreateSignal(vals[0].trim(), Long.parseLong(vals[1].trim()));
-		} else if (matches(ASSIGNMENT_WITHOUT_VALUE, input)) {
-			throw new UnsupportedOperationException();
+		} else if (matches(EXIT, input)) {
+			command = new Exit();
 		}
 		
 		if (command == null) {
