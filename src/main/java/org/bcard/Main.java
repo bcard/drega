@@ -12,17 +12,21 @@ public class Main extends Verticle {
 	@Override
 	public void start() {
 		container.logger().info("Starting Application...");
-		in = new Scanner(System.in);
+
+		// start command processor
+		container.deployVerticle("org.bcard.command.CommandProcessor");
 
 		// command line interface
+		in = new Scanner(System.in);
 		vertx.setPeriodic(500, new Handler<Long>() {
 
 			@Override
 			public void handle(Long event) {
 				System.out.print("> ");
-				String s = in.nextLine();
-				if (!s.isEmpty()) {
-					container.logger().info("You typed in: " + s);
+				String input = in.nextLine();
+				if (!input.isEmpty()) {
+					container.logger().debug("You typed in: " + input);
+					vertx.eventBus().publish("command", input);
 				}
 			}
 		});

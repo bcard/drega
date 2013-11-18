@@ -11,12 +11,16 @@ import java.util.regex.Pattern;
 public class CommandParser {
 	
 	public static final String ASSIGNMENT_WITH_VALUE = "[a-zA-Z0-9]+\\s?=\\s?\\d+";
+
+	public static final String ASSIGNMENT_WITHOUT_VALUE = "[a-zA-Z0-9]+";
 	
 	public static ICommand parse(String input) {
 		ICommand command = null;
-		if (Pattern.matches(ASSIGNMENT_WITH_VALUE, input)) {
+		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
 			String[] vals = input.split("=");
 			command = new CreateSignal(vals[0].trim(), Long.parseLong(vals[1].trim()));
+		} else if (matches(ASSIGNMENT_WITHOUT_VALUE, input)) {
+			throw new UnsupportedOperationException();
 		}
 		
 		if (command == null) {
@@ -24,5 +28,20 @@ public class CommandParser {
 		}
 		
 		return command;
+	}
+	
+	/**
+	 * Returns {@code true} if the given regex {@code pattern} matches the given
+	 * {@code input}.
+	 * 
+	 * @param pattern
+	 *            a java regular expression
+	 * @param input
+	 *            a input
+	 * @return {@code true} if there's a match {@code false} if there is no
+	 *         match
+	 */
+	private static boolean matches(String pattern, String input) {
+		return Pattern.matches(pattern, input);
 	}
 }

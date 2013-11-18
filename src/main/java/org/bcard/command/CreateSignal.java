@@ -13,7 +13,7 @@ public class CreateSignal implements ICommand {
 
 	@Override
 	public void execute() {
-		
+		System.out.println("Creating "+id+" = "+initialValue);
 	}
 
 	public long getInitialValue(){

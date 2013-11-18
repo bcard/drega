@@ -17,6 +17,7 @@ package org.bcard.integration.ruby;
  * @author <a href="http://tfox.org">Tim Fox</a>
  */
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.vertx.testtools.ScriptClassRunner;
@@ -33,6 +34,7 @@ import org.vertx.testtools.TestVerticleInfo;
  */
 @TestVerticleInfo(filenameFilter=".+\\.rb", funcRegex="def[\\s]+(test[^\\s]+)")
 @RunWith(ScriptClassRunner.class)
+@Ignore
 public class RubyIntegrationTests {
   @Test
   public void __vertxDummy() {
