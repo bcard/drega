@@ -14,6 +14,8 @@ import org.vertx.java.platform.Verticle;
  * <ul>
  * <li>String message with body 'print', causes the signal to print it's current
  * value to the logger
+ * <li>String message with body 'increment' causes the signal to increment it's
+ * current value and send an update to all dependent signals
  * </ul>
  * 
  * @author bcard
@@ -21,7 +23,7 @@ import org.vertx.java.platform.Verticle;
  */
 public class Signal extends Verticle {
 
-	private long value;
+	/*protected for testing*/ long value;
 
 	private String id;
 
@@ -35,7 +37,11 @@ public class Signal extends Verticle {
 
 			@Override
 			public void handle(Message<String> event) {
-				container.logger().info(id+": "+value);
+				if ("print".equals(event.body())) {
+					container.logger().info(id+": "+value);
+				} else if ("increment".equals(event.body())) {
+					value++;
+				}
 			}
 			
 		});

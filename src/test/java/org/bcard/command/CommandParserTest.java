@@ -58,6 +58,11 @@ public class CommandParserTest {
 		assertThat(parse("x1 "), instanceOf(PrintSignal.class));
 	}
 	
+	@Test
+	public void testIncrementOperatorReturnsIncrementCommand() {
+		assertThat(parse("x1++"), instanceOf(Increment.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {

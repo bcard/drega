@@ -16,6 +16,8 @@ public class CommandParser {
 	
 	public static final String EXIT = "exit";
 	
+	public static final String INCREMENT = ASSIGNMENT_WITHOUT_VALUE+"\\+\\+";
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
 		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
@@ -25,6 +27,11 @@ public class CommandParser {
 			command = new Exit();
 		} else if (matches(ASSIGNMENT_WITHOUT_VALUE, input)) {
 			command = new PrintSignal(input.trim());
+		} else if (matches(INCREMENT, input)) {
+			String val = input.trim();
+			val = val.substring(0, val.length()-2);
+			val = val.trim();
+			command = new Increment(val);
 		}
 		
 		if (command == null) {

@@ -1,5 +1,6 @@
 package org.bcard;
 
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
@@ -86,5 +87,23 @@ public class SignalTest {
 		captor.getValue().handle(mockMessage);
 		
 		verify(logger, atLeastOnce()).info(anyString());
+	}
+	
+	@Test
+	public void testUpdateValueOnIncrementCommand() {
+		Signal signal = new Signal();
+		signal.setContainer(container);
+		signal.setVertx(vertx);
+		
+		signal.start();
+		
+		verify(eventBus).registerHandler(anyString(), captor.capture());
+		
+		Message<String> mockMessage = mock(Message.class);
+		when(mockMessage.body()).thenReturn("increment");
+		
+		captor.getValue().handle(mockMessage);
+		
+		assertEquals(1, signal.value);
 	}
 }
