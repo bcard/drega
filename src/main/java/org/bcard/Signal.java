@@ -20,9 +20,9 @@ import org.vertx.java.platform.Verticle;
  * 
  */
 public class Signal extends Verticle {
-	
+
 	private long value;
-	
+
 	private String id;
 
 	@Override

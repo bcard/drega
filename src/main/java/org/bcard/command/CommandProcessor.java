@@ -29,6 +29,8 @@ public class CommandProcessor extends Verticle {
 				catch (ParseException e) {
 					container.logger().error("Invalid Command:"+text);
 				}
+				
+				// must be called for the REPL to know that we are finished
 				event.reply();
 			}
 			
