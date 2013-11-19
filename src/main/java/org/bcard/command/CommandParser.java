@@ -9,14 +9,18 @@ import java.util.regex.Pattern;
  * 
  */
 public class CommandParser {
-	
-	public static final String ASSIGNMENT_WITH_VALUE = "[a-zA-Z0-9]+\\s?=\\s?\\d+";
 
-	public static final String ASSIGNMENT_WITHOUT_VALUE = "\\s?[a-zA-Z0-9]+\\s?";
+	public static final String VARIABLE = "[a-zA-Z0-9]+";
+	
+	public static final String ASSIGNMENT_WITH_VALUE = VARIABLE+"\\s?=\\s?\\d+";
+
+	public static final String ASSIGNMENT_WITHOUT_VALUE = "\\s?"+VARIABLE+"+\\s?";
 	
 	public static final String EXIT = "exit";
 	
 	public static final String INCREMENT = ASSIGNMENT_WITHOUT_VALUE+"\\+\\+";
+	
+	public static final String MAP_SIGNAL = VARIABLE+"\\s?=\\s?"+VARIABLE;
 	
 	public static ICommand parse(String input) {
 		ICommand command = null;
@@ -32,6 +36,9 @@ public class CommandParser {
 			val = val.substring(0, val.length()-2);
 			val = val.trim();
 			command = new Increment(val);
+		} else if (matches(MAP_SIGNAL, input)) {
+			String[] vals = input.split("=");
+			command = new MapSignal(vals[0].trim(), vals[1].trim());
 		}
 		
 		if (command == null) {

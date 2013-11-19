@@ -63,6 +63,16 @@ public class CommandParserTest {
 		assertThat(parse("x1++"), instanceOf(Increment.class));
 	}
 	
+	@Test
+	public void testSingleSymbolAssignment() {
+		assertThat(parse("x=y"), instanceOf(MapSignal.class));
+	}
+	
+	@Test
+	public void testSingleSymbolAssignmentWithSapce() {
+		assertThat(parse("x = y"), instanceOf(MapSignal.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {
