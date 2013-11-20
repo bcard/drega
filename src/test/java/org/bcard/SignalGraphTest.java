@@ -145,15 +145,40 @@ public class SignalGraphTest {
 	}
 	
 	@Test
-	public void testConvertToJSON() {
+	public void testJsonSimpleDeserialize() {
 		SignalGraph g0 = new SignalGraph(id(0));
-		SignalGraph g1 = new SignalGraph(id(1), g0);
-		
-		String json = g1.toJson();
+		String json = g0.toJson();
 		
 		SignalGraph copy = SignalGraph.fromJson(json);
 		
-		assertEquals(g1, copy);
+		assertEquals(g0, copy);
+	}
+	
+	@Test
+	public void testJsonDeserializeWithDependencies() {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1));
+		SignalGraph g2 = new SignalGraph(id(2), g0, g1);
+		String json = g2.toJson();
+		
+		SignalGraph copy = SignalGraph.fromJson(json);
+		
+		assertEquals(g2, copy);
+	}
+	
+	@Test
+	public void testJsonDeserializeWithMultiLevel() {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1));
+		SignalGraph g2 = new SignalGraph(id(2));
+		SignalGraph g3 = new SignalGraph(id(3), g2);
+		
+		SignalGraph g4 = new SignalGraph(id(4), g0, g1, g3);
+		String json = g4.toJson();
+		System.out.println(g4.toString());
+		SignalGraph copy = SignalGraph.fromJson(json);
+		
+		assertEquals(g4, copy);
 	}
 
 	

@@ -4,9 +4,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.ObjectCodec;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Dependency graph for observables. This class allows us to find common
@@ -15,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * @author bcard
  * 
  */
+@JsonDeserialize(using = SignalGraph.Deserializer.class)
+@JsonInclude(Include.NON_EMPTY)
 public class SignalGraph {
 
 	@JsonProperty("dependencies")
@@ -52,6 +64,7 @@ public class SignalGraph {
 	 * 
 	 * @return all
 	 */
+	@JsonIgnore
 	public List<SignalGraph> getDependentSignals() {
 		return new ArrayList<SignalGraph>(upstreamDependencies);
 	}
@@ -118,19 +131,21 @@ public class SignalGraph {
 	 * Converts this graph to a JSON string. Use the {@link #fromJson(String)}
 	 * method to trun this string back into a {@link SignalGraph} object.
 	 * 
-	 * @return JSON representation of this object
+	 * @return JSON representation of this object or an empty string if there
+	 *         was a problem with serialization
 	 */
 	public String toJson() {
 		ObjectMapper mapper = new ObjectMapper();
 		String returnValue = "";
 		try {
-			returnValue = mapper.writeValueAsString(this);
+			returnValue = mapper.writer(new DefaultPrettyPrinter())
+					.writeValueAsString(this);
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
 		return returnValue;
 	}
-	
+
 	/**
 	 * Converts a JSON representation of a {@link SignalGraph} to an instance of
 	 * a {@link SignalGraph}. This can be used in conjunction with the
@@ -148,8 +163,75 @@ public class SignalGraph {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		return null;
 	}
+	
+	@Override
+	public String toString() {
+		String json = toJson();
+		
+		// simplify the json further by removing control structures, 
+		// we will infer this from the indentation
+		json = json.replace("{", " ");
+		json = json.replace("}", " ");
+		json = json.replace("[", " ");
+		json = json.replace("]", " ");
+		json = json.replace(",", " ");
+		json = json.replace("\"", " ");
+		json = json.replaceAll("\n\\s+\n", "\n");
+		json = json.replaceAll("^\\s+\n", "");
+		
+		return json;
+	}
 
+	/**
+	 * A class for deserializing {@link SignalGraph}s from JSON.
+	 * 
+	 * @author bcard
+	 * 
+	 */
+	private static class Deserializer extends JsonDeserializer<SignalGraph> {
+
+		@Override
+		public SignalGraph deserialize(JsonParser parser,
+				DeserializationContext ctxt) throws IOException,
+				JsonProcessingException {
+			ObjectCodec oc = parser.getCodec();
+			JsonNode node = oc.readTree(parser);
+
+			SignalGraph graph = buildRecursive(node);
+
+			return graph;
+		}
+
+		/**
+		 * Recursively builds the graph from the bottom up. This does a depth
+		 * first search on the {@link JsonNode}, builds teh lowest graph and
+		 * then uses that as a dependency for the graphs that are higher up if
+		 * necessary.
+		 * 
+		 * @param node
+		 *            a {@link JsonNode} containing the serialized JSON object
+		 * @return a {@link SignalGraph} build from the json
+		 */
+		private SignalGraph buildRecursive(JsonNode node) {
+			String id = node.get("id").asText();
+
+			List<SignalGraph> dependencies = new ArrayList<SignalGraph>();
+			if (node.has("dependencies")) {
+				for (JsonNode dependency : node.get("dependencies")) {
+					SignalGraph graph = buildRecursive(dependency);
+					dependencies.add(graph);
+				}
+			}
+
+			SignalGraph[] graphs = dependencies
+					.toArray(new SignalGraph[dependencies.size()]);
+			SignalGraph returnValue = new SignalGraph(id, graphs);
+
+			return returnValue;
+		}
+
+	}
 }
