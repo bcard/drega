@@ -179,6 +179,7 @@ public class SignalGraph {
 		json = json.replace("]", " ");
 		json = json.replace(",", " ");
 		json = json.replace("\"", " ");
+		json = json.replace("  :", ":");
 		json = json.replaceAll("\n\\s+\n", "\n");
 		json = json.replaceAll("^\\s+\n", "");
 		
@@ -191,7 +192,7 @@ public class SignalGraph {
 	 * @author bcard
 	 * 
 	 */
-	private static class Deserializer extends JsonDeserializer<SignalGraph> {
+	public static class Deserializer extends JsonDeserializer<SignalGraph> {
 
 		@Override
 		public SignalGraph deserialize(JsonParser parser,
