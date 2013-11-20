@@ -61,7 +61,7 @@ public class Signal extends Verticle {
 
 					@Override
 					public void handle(Message<Long> event) {
-						value = event.body();
+						updateValue(event.body());
 					}
 					
 				});
@@ -127,8 +127,7 @@ public class Signal extends Verticle {
 
 		@Override
 		public void handle(Message<String> event) {
-			value++;
-			vertx.eventBus().publish("signals."+id+".value", value);
+			updateValue(value + 1);
 		}
 	}
 	
@@ -146,6 +145,18 @@ public class Signal extends Verticle {
 			}
 			event.reply(obj);
 		}
+	}
+	
+	/**
+	 * Updates the valued stored by this signal and broadcasts the new value to
+	 * all other signals.
+	 * 
+	 * @param newValue
+	 *            the new value that this signal should represent
+	 */
+	private void updateValue(long newValue) {
+		value = newValue;
+		vertx.eventBus().publish("signals."+id+".value", value);
 	}
 
 }
