@@ -154,6 +154,17 @@ public class SignalTest {
 		JSONAssert.assertEquals(expectedJson, recievedJson, false);
 	}
 	
+	@Test
+	public void testPrintGraph() {
+		startSignal();
+		
+		verify(eventBus).registerHandler(eq("signals."+ID+".print.graph"), stringCaptor.capture());
+		Message<String> mockMessage = mock(Message.class);
+		stringCaptor.getValue().handle(mockMessage);
+		
+		verify(logger, atLeastOnce()).info(anyString());
+	}
+	
 	private Signal startSignal() {
 		Signal signal = new Signal();
 		signal.setContainer(container);

@@ -13,15 +13,16 @@ import org.vertx.java.platform.Verticle;
  * A signal is the base construct in our functional reactive system. The signal
  * is an aggregator of values as well as producer of values. Signals use the
  * event bus as the primary means of communication and will respond on the
- * address {@code signals.[id]} where [id] is the id of the signal you wish to
- * communicate with. Currently the following messages are supported:
+ * address {@code signals.[id].[channel]} where [id] is the id of the signal you
+ * wish to communicate with and [channel] is the command or channel to send
+ * a value to. Currently the following messages are supported:
  * 
  * <ul>
- * <li>String message with body 'print', causes the signal to print it's current
+ * <li><b>.print</b> String message, causes the signal to print it's current
  * value to the logger
- * <li>String message with body 'increment' causes the signal to increment it's
+ * <li><b>.increment</b> String message, causes the signal to increment it's
  * current value and send an update to all dependent signals
- * <li>String message with the body 'sendGraph' causes this signal to reply with
+ * <li><b>.sendGraph</b> String message, causes this signal to reply with
  * the current {@link SignalGraph} in serialized JSON form
  * </ul>
  * 
@@ -65,6 +66,7 @@ public class Signal extends Verticle {
 					
 				});
 				
+				// next tell our dependencies to send us their graphs
 				vertx.eventBus().send("signals." + signal+".sendGraph", "",
 						new Handler<Message<JsonObject>>() {
 
@@ -83,12 +85,14 @@ public class Signal extends Verticle {
 		}
 		
 		PrintHandler printer = new PrintHandler("signals."+id+".print");
+		PrintGraphHandler printGraph = new PrintGraphHandler("signals."+id+".print.graph");
 		IncrementHandler incrementer = new IncrementHandler("signals."+id+".increment");
 		GraphHandler grapher = new GraphHandler("signals."+id+".sendGraph");
 		
 		incrementer.apply(vertx.eventBus());
 		printer.apply(vertx.eventBus());
 		grapher.apply(vertx.eventBus());
+		printGraph.apply(vertx.eventBus());
 	}
 	
 	private class PrintHandler extends HandlerApplicator<String> {
@@ -100,6 +104,18 @@ public class Signal extends Verticle {
 		@Override
 		public void handle(Message<String> event) {
 			container.logger().info(id+": "+value);
+		}
+	}
+	
+	private class PrintGraphHandler extends HandlerApplicator<String> {
+		
+		public PrintGraphHandler(String address) {
+			super(address);
+		}
+		
+		@Override
+		public void handle(Message<String> event) {
+			container.logger().info("Dependency Graph for "+id+":\n"+graph);
 		}
 	}
 	

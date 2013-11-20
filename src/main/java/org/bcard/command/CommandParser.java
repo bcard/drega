@@ -22,6 +22,8 @@ public class CommandParser {
 	
 	public static final String MAP_SIGNAL = VARIABLE+"\\s?=\\s?"+VARIABLE;
 	
+	public static final String GRAPH = "graph "+VARIABLE;
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
 		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
@@ -39,6 +41,9 @@ public class CommandParser {
 		} else if (matches(MAP_SIGNAL, input)) {
 			String[] vals = input.split("=");
 			command = new MapSignal(vals[0].trim(), vals[1].trim());
+		} else if (matches(GRAPH, input)) {
+			String[] vals = input.split(" ");
+			command = new PrintGraph(vals[1]);
 		}
 		
 		if (command == null) {

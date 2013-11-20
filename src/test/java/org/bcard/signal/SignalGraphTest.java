@@ -176,7 +176,6 @@ public class SignalGraphTest {
 		
 		SignalGraph g4 = new SignalGraph(id(4), g0, g1, g3);
 		String json = g4.toJson();
-		System.out.println(g4.toString());
 		SignalGraph copy = SignalGraph.fromJson(json);
 		
 		assertEquals(g4, copy);

@@ -73,6 +73,11 @@ public class CommandParserTest {
 		assertThat(parse("x = y"), instanceOf(MapSignal.class));
 	}
 	
+	@Test
+	public void testGraphCommand() {
+		assertThat(parse("graph x"), instanceOf(PrintGraph.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {
