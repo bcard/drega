@@ -6,9 +6,6 @@ import org.json.JSONException;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
  * Some tests for the {@link SignalGraph} class.
  * 
@@ -110,17 +107,53 @@ public class SignalGraphTest {
 		SignalGraph g0 = new SignalGraph(id(0));
 		SignalGraph g1 = new SignalGraph(id(1), g0);
 		
-		String json = g0.toJson();
+		String json = g1.toJson();
 		
 		JSONAssert.assertEquals(
 				"{ " +
-				  "id: '0', " +
+				  "id: '1', " +
 				  "dependencies: [" +
 				    "{ " +
 				      "id: '0'" +
 				    "} " +
 				  "] " +
 				"}", json, false);
+	}
+	
+	@Test
+	public void testJsonNestedDependencies() throws Exception {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1), g0);
+		SignalGraph g2 = new SignalGraph(id(2), g1);
+		
+		String json = g2.toJson();
+		
+		JSONAssert.assertEquals(
+				"{ " +
+				  "id: '2', " +
+				  "dependencies: [" +
+				    "{ " +
+				      "id: '1'," +
+				      "dependencies: [" +
+					    "{ " +
+					      "id: '0'" +
+					    "} " +
+					  "] " +
+				    "} " +
+				  "] " +
+				"}", json, false);
+	}
+	
+	@Test
+	public void testConvertToJSON() {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1), g0);
+		
+		String json = g1.toJson();
+		
+		SignalGraph copy = SignalGraph.fromJson(json);
+		
+		assertEquals(g1, copy);
 	}
 
 	

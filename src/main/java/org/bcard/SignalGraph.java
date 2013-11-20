@@ -1,7 +1,12 @@
 package org.bcard;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Dependency graph for observables. This class allows us to find common
@@ -12,8 +17,10 @@ import java.util.List;
  */
 public class SignalGraph {
 
+	@JsonProperty("dependencies")
 	List<SignalGraph> upstreamDependencies = new ArrayList<SignalGraph>();
 
+	@JsonProperty
 	private final String id;
 
 	/**
@@ -114,11 +121,35 @@ public class SignalGraph {
 	 * @return JSON representation of this object
 	 */
 	public String toJson() {
-		return "{id:'0'}";
+		ObjectMapper mapper = new ObjectMapper();
+		String returnValue = "";
+		try {
+			returnValue = mapper.writeValueAsString(this);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+		return returnValue;
 	}
 	
+	/**
+	 * Converts a JSON representation of a {@link SignalGraph} to an instance of
+	 * a {@link SignalGraph}. This can be used in conjunction with the
+	 * {@link #toJson()} method to serialize and deserialize graphs.
+	 * 
+	 * @param json
+	 *            a JSON representation of a {@link SignalGraph}
+	 * @return a serialized {@link SignalGraph} or {@code null} if there was a
+	 *         problem deserializing the object
+	 */
 	public static SignalGraph fromJson(String json) {
-		throw new UnsupportedOperationException();
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			return mapper.readValue(json, SignalGraph.class);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		return null;
 	}
 
 }
