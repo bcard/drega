@@ -13,7 +13,7 @@ public class PrintSignal implements ICommand {
 
 	@Override
 	public void execute(Container container, Vertx vertx) {
-		vertx.eventBus().publish("signals."+id, "print");
+		vertx.eventBus().publish("signals."+id+".print", "");
 	}
 
 }

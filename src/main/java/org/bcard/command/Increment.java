@@ -20,7 +20,7 @@ public class Increment implements ICommand {
 	
 	@Override
 	public void execute(Container container, Vertx vertx) {
-		vertx.eventBus().publish("signals."+id, "increment");
+		vertx.eventBus().publish("signals."+id+".increment", "");
 	}
 
 }

@@ -40,7 +40,7 @@ public class CreateSignal implements ICommand {
 		JsonObject config = new JsonObject();
 		config.putString("id", id);
 		config.putNumber("initialValue", initialValue);
-		container.deployVerticle("org.bcard.Signal", config);
+		container.deployVerticle("org.bcard.signal.Signal", config);
 	}
 
 	/**

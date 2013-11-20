@@ -28,7 +28,7 @@ public class MapSignal implements ICommand {
 		JsonArray array = new JsonArray();
 		array.addString(upstreamSignal);
 		config.putArray("dependencies", array);
-		container.deployVerticle("org.bcard.Signal", config);
+		container.deployVerticle("org.bcard.signal.Signal", config);
 	}
 
 }

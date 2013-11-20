@@ -1,4 +1,4 @@
-package org.bcard;
+package org.bcard.signal;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,7 +65,7 @@ public class Signal extends Verticle {
 					
 				});
 				
-				vertx.eventBus().send("signals." + signal, "sendGraph",
+				vertx.eventBus().send("signals." + signal+".sendGraph", "",
 						new Handler<Message<JsonObject>>() {
 
 					@Override
@@ -82,25 +82,54 @@ public class Signal extends Verticle {
 			}
 		}
 		
-		vertx.eventBus().registerHandler("signals."+id, new Handler<Message<String>>() {
+		PrintHandler printer = new PrintHandler("signals."+id+".print");
+		IncrementHandler incrementer = new IncrementHandler("signals."+id+".increment");
+		GraphHandler grapher = new GraphHandler("signals."+id+".sendGraph");
+		
+		incrementer.apply(vertx.eventBus());
+		printer.apply(vertx.eventBus());
+		grapher.apply(vertx.eventBus());
+	}
+	
+	private class PrintHandler extends HandlerApplicator<String> {
+		
+		public PrintHandler(String address) {
+			super(address);
+		}
 
-			@Override
-			public void handle(Message<String> event) {
-				if ("print".equals(event.body())) {
-					container.logger().info(id+": "+value);
-				} else if ("increment".equals(event.body())) {
-					value++;
-					vertx.eventBus().publish("signals."+id+".value", value);
-				} else if ("sendGraph".equals(event.body())) {
-					JsonObject obj = null;
-					if (graph != null) {
-					  obj = new JsonObject(graph.toJson());
-					}
-					event.reply(obj);
-				}
+		@Override
+		public void handle(Message<String> event) {
+			container.logger().info(id+": "+value);
+		}
+	}
+	
+	private class IncrementHandler extends HandlerApplicator<String> {
+		
+		public IncrementHandler(String address) {
+			super(address);
+		}
+
+		@Override
+		public void handle(Message<String> event) {
+			value++;
+			vertx.eventBus().publish("signals."+id+".value", value);
+		}
+	}
+	
+	private class GraphHandler extends HandlerApplicator<String> {
+		
+		public GraphHandler(String address) {
+			super(address);
+		}
+
+		@Override
+		public void handle(Message<String> event) {
+			JsonObject obj = null;
+			if (graph != null) {
+			  obj = new JsonObject(graph.toJson());
 			}
-		});
-
+			event.reply(obj);
+		}
 	}
 
 }

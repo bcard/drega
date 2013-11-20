@@ -1,7 +1,8 @@
-package org.bcard;
+package org.bcard.signal;
 
 import static org.junit.Assert.*;
 
+import org.bcard.signal.SignalGraph;
 import org.json.JSONException;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;

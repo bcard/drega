@@ -1,4 +1,4 @@
-package org.bcard;
+package org.bcard.signal;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
@@ -9,6 +9,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.bcard.signal.Signal;
+import org.bcard.signal.SignalGraph;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -67,23 +69,11 @@ public class SignalTest {
 	}
 	
 	@Test
-	public void testRegisterOnIdChannel() {
-		config.putString("id", "x1");
-		
-		startSignal();
-		
-		verify(eventBus).registerHandler(eq("signals.x1"), any(Handler.class));
-	}
-	
-	@Test
 	public void testLogValueOnPrintCommand() {
 		startSignal();
 		
-		verify(eventBus).registerHandler(anyString(), stringCaptor.capture());
-		
+		verify(eventBus).registerHandler(eq("signals."+ID+".print"), stringCaptor.capture());
 		Message<String> mockMessage = mock(Message.class);
-		when(mockMessage.body()).thenReturn("print");
-		
 		stringCaptor.getValue().handle(mockMessage);
 		
 		verify(logger, atLeastOnce()).info(anyString());
@@ -93,11 +83,8 @@ public class SignalTest {
 	public void testUpdateValueOnIncrementCommand() {
 		Signal signal = startSignal();
 		
-		verify(eventBus).registerHandler(anyString(), stringCaptor.capture());
-		
+		verify(eventBus).registerHandler(eq("signals."+ID+".increment"), stringCaptor.capture());
 		Message<String> mockMessage = mock(Message.class);
-		when(mockMessage.body()).thenReturn("increment");
-		
 		stringCaptor.getValue().handle(mockMessage);
 		
 		assertEquals(1, signal.value);
@@ -107,10 +94,8 @@ public class SignalTest {
 	public void testPublishUpdateOnIncrementCommand() {
 		startSignal();
 		
-		verify(eventBus).registerHandler(anyString(), stringCaptor.capture());
-		
+		verify(eventBus).registerHandler(eq("signals."+ID+".increment"), stringCaptor.capture());
 		Message<String> mockMessage = mock(Message.class);
-		when(mockMessage.body()).thenReturn("increment");
 		stringCaptor.getValue().handle(mockMessage);
 		
 		verify(eventBus).publish(eq("signals."+ID+".value"), eq(1L));
@@ -153,11 +138,9 @@ public class SignalTest {
 	public void testReplyWithSimpleGraph() throws Exception {
 		startSignal();
 		
-		verify(eventBus).registerHandler(anyString(), stringCaptor.capture());
+		verify(eventBus).registerHandler(eq("signals."+ID+".sendGraph"), stringCaptor.capture());
 		
 		Message<String> mockMessage = mock(Message.class);
-		when(mockMessage.body()).thenReturn("sendGraph");
-		
 		stringCaptor.getValue().handle(mockMessage);
 		
 		// signal should reply with the current graph when we ask it
