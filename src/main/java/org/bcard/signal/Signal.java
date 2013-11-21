@@ -3,6 +3,7 @@ package org.bcard.signal;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.core.json.JsonArray;
@@ -42,7 +43,7 @@ public class Signal extends Verticle {
 	List<SignalGraph> discoveredDependencies = new ArrayList<SignalGraph>();
 
 	@Override
-	public void start() {
+	public void start(final Future<Void> startedResult) {
 		JsonObject config = container.config();
 		id = config.getString("id");
 		container.logger().info("Starting Signal " + id);
@@ -51,10 +52,11 @@ public class Signal extends Verticle {
 			value = config.getLong("initialValue");
 		}
 		
-		JsonArray dependencies = config.getArray("dependencies");
+		final JsonArray dependencies = config.getArray("dependencies");
 		final int waitSize = dependencies == null ? 0 : dependencies.size();
 		if (waitSize == 0) {
 			graph = new SignalGraph(id);
+			startedResult.setResult(null);
 		} else {
 			for (Object dep : dependencies) {
 				String signal = (String) dep;
@@ -69,7 +71,6 @@ public class Signal extends Verticle {
 				});
 				
 				// next tell our dependencies to send us their graphs
-				// TODO this needs more unit tests!
 				vertx.eventBus().send("signals." + signal+".sendGraph", "",
 						new Handler<Message<JsonObject>>() {
 
@@ -78,9 +79,10 @@ public class Signal extends Verticle {
 						SignalGraph found = SignalGraph.fromJson(event.body().encodePrettily());
 						discoveredDependencies.add(found);
 						if (discoveredDependencies.size() >= waitSize) {
+							container.logger().info(id+" received dependency graphs from "+dependencies);
 							SignalGraph[] graphs = discoveredDependencies.toArray(new SignalGraph[0]);
 							graph = new SignalGraph(id, graphs);
-							container.logger().info("Finished recieving graph updates, graph is now:\n"+graph);
+							startedResult.setResult(null);
 						}
 					}
 				});
