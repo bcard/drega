@@ -1,5 +1,6 @@
 package org.bcard.command;
 
+import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.platform.Verticle;
@@ -24,17 +25,31 @@ public class CommandProcessor extends Verticle {
 				String text = event.body();
 				try {
 					ICommand command = CommandParser.parse(text);
-					command.execute(container, vertx);
+					
+					AsynchResultHandler handler = new AsynchResultHandler(event);
+					command.execute(container, vertx, handler);
 				}
 				catch (ParseException e) {
 					container.logger().error("Invalid Command:"+text);
 				}
-				
-				// must be called for the REPL to know that we are finished
-				event.reply();
 			}
-			
 		});
+		
+	}
+	
+	private static class AsynchResultHandler implements Handler<AsyncResult<String>> {
+		
+		private final Message<String> event;
+		
+		public AsynchResultHandler(Message<String> event) {
+			this.event = event;
+		}
+
+		@Override
+		public void handle(AsyncResult<String> result) {
+			// must be called for the REPL to know that we are finished
+			event.reply();
+		}
 		
 	}
 }

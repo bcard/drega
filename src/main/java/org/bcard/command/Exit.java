@@ -1,5 +1,7 @@
 package org.bcard.command;
 
+import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.platform.Container;
 
@@ -12,7 +14,7 @@ import org.vertx.java.platform.Container;
 public class Exit implements ICommand {
 
 	@Override
-	public void execute(Container container, Vertx vertx) {
+	public void execute(Container container, Vertx vertx, Handler<AsyncResult<String>> done ) {
 		container.exit();
 		container.logger().info("goodbye");
 	}

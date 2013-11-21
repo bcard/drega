@@ -1,5 +1,8 @@
 package org.bcard.command;
 
+import org.bcard.signal.Signal;
+import org.vertx.java.core.AsyncResult;
+import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Container;
@@ -36,11 +39,11 @@ public class CreateSignal implements ICommand {
 	}
 
 	@Override
-	public void execute(Container container, Vertx vertx) {
+	public void execute(Container container, Vertx vertx, Handler<AsyncResult<String>> done) {
 		JsonObject config = new JsonObject();
 		config.putString("id", id);
 		config.putNumber("initialValue", initialValue);
-		container.deployVerticle("org.bcard.signal.Signal", config);
+		container.deployVerticle(Signal.class.getName(), config, done);
 	}
 
 	/**

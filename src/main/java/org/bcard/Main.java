@@ -21,7 +21,7 @@ public class Main extends Verticle {
 
 		// command line interface
 		handler = new InputHandler(vertx);
-		vertx.setTimer(500, handler);
+		vertx.setTimer(100, handler);
 	}
 	
 	@Override
@@ -61,12 +61,12 @@ public class Main extends Verticle {
 
 					@Override
 					public void handle(Message<Object> event) {
-						vertx.setTimer(100, InputHandler.this);
+						vertx.setTimer(10, InputHandler.this);
 					}
 
 				});
 			} else {
-				vertx.setTimer(100, InputHandler.this);
+				vertx.setTimer(10, InputHandler.this);
 			}
 		}
 		

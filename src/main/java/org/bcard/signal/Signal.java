@@ -20,6 +20,8 @@ import org.vertx.java.platform.Verticle;
  * <ul>
  * <li><b>.print</b> String message, causes the signal to print it's current
  * value to the logger
+ * <li><b>.print.graph</b> String message, causes the signal to print it's current
+ * dependency graph to the logger
  * <li><b>.increment</b> String message, causes the signal to increment it's
  * current value and send an update to all dependent signals
  * <li><b>.sendGraph</b> String message, causes this signal to reply with
@@ -67,6 +69,7 @@ public class Signal extends Verticle {
 				});
 				
 				// next tell our dependencies to send us their graphs
+				// TODO this needs more unit tests!
 				vertx.eventBus().send("signals." + signal+".sendGraph", "",
 						new Handler<Message<JsonObject>>() {
 
