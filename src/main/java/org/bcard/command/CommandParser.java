@@ -2,6 +2,8 @@ package org.bcard.command;
 
 import java.util.regex.Pattern;
 
+import org.bcard.signal.CombineOperator;
+
 /**
  * Parses command line input and turns it into a concrete command class.
  * 
@@ -24,6 +26,8 @@ public class CommandParser {
 	
 	public static final String GRAPH = "graph "+VARIABLE;
 	
+	public static final String COMBINE_ADDITION = VARIABLE+"="+VARIABLE+"\\+"+VARIABLE;
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
 		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
@@ -44,6 +48,9 @@ public class CommandParser {
 		} else if (matches(GRAPH, input)) {
 			String[] vals = input.split(" ");
 			command = new PrintGraph(vals[1]);
+		} else if (matches(COMBINE_ADDITION, input)) {
+			String[] vals = input.split("[=+]");
+			command = new CombineSymbols(vals[0], vals[1], vals[2], CombineOperator.ADD);
 		}
 		
 		if (command == null) {

@@ -2,6 +2,7 @@ package org.bcard.command;
 
 import static org.junit.Assert.*;
 
+import org.bcard.signal.CombineOperator;
 import org.junit.Test;
 import static org.hamcrest.core.IsInstanceOf.*;
 
@@ -76,6 +77,13 @@ public class CommandParserTest {
 	@Test
 	public void testGraphCommand() {
 		assertThat(parse("graph x"), instanceOf(PrintGraph.class));
+	}
+	
+	@Test
+	public void testAddingSignals() {
+		CombineSymbols command = (CombineSymbols)parse("x=y+z");
+		
+		assertEquals(CombineOperator.ADD, command.operator);
 	}
 	
 	/// ------------- Helper methods --------------- /// 

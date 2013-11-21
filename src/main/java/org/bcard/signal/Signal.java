@@ -1,8 +1,11 @@
 package org.bcard.signal;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.bcard.signal.SignalGraph;
 import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
@@ -40,37 +43,46 @@ public class Signal extends Verticle {
 	
 	private SignalGraph graph;
 	
-	List<SignalGraph> discoveredDependencies = new ArrayList<SignalGraph>();
+	private List<SignalGraph> discoveredDependencies;
+	
+	private final Map<SignalGraph, Long> lastValues = new HashMap<SignalGraph, Long>();
+	
+	private CombineOperator operator;
+	
+	/**
+	 * The number of dependencies that this signal has.  Once set this value should not change.
+	 */
+	private int numberOfDependencies;
 
 	@Override
 	public void start(final Future<Void> startedResult) {
 		JsonObject config = container.config();
 		id = config.getString("id");
 		container.logger().info("Starting Signal " + id);
+		
+		if (config.getField("operator") != null) {
+			String name = config.getString("operator");
+			operator = CombineOperator.valueOf(name);
+		}
 
 		if (config.getField("initialValue") != null) {
 			value = config.getLong("initialValue");
 		}
 		
 		final JsonArray dependencies = config.getArray("dependencies");
-		final int waitSize = dependencies == null ? 0 : dependencies.size();
-		if (waitSize == 0) {
+		numberOfDependencies = dependencies == null ? 0 : dependencies.size();
+		discoveredDependencies = new ArrayList<SignalGraph>(numberOfDependencies);
+		if (numberOfDependencies == 0) {
 			graph = new SignalGraph(id);
 			startedResult.setResult(null);
 		} else {
 			for (Object dep : dependencies) {
 				String signal = (String) dep;
-				// first, let watch for any updates for this signal
-				vertx.eventBus().registerHandler("signals."+signal+".value", new Handler<Message<Long>>() {
-
-					@Override
-					public void handle(Message<Long> event) {
-						updateValue(event.body());
-					}
-					
-				});
 				
-				// next tell our dependencies to send us their graphs
+				// tell our dependencies to send us their graphs
+				// TODO, make this an inner class, set index to add to discoveredDependencies
+				// so that they are specified in iteration order.  This way we can ensure that
+				// the combine function is using the correct argument order
 				vertx.eventBus().send("signals." + signal+".sendGraph", "",
 						new Handler<Message<JsonObject>>() {
 
@@ -78,7 +90,12 @@ public class Signal extends Verticle {
 					public void handle(Message<JsonObject> event) {
 						SignalGraph found = SignalGraph.fromJson(event.body().encodePrettily());
 						discoveredDependencies.add(found);
-						if (discoveredDependencies.size() >= waitSize) {
+						
+						// register for updates
+						DependencyUpdateHandler handler = new DependencyUpdateHandler("signals."+found.getId()+".value", found);
+						handler.apply(vertx.eventBus());
+						
+						if (discoveredDependencies.size() >= numberOfDependencies) {
 							container.logger().info(id+" received dependency graphs from "+dependencies);
 							SignalGraph[] graphs = discoveredDependencies.toArray(new SignalGraph[0]);
 							graph = new SignalGraph(id, graphs);
@@ -149,6 +166,54 @@ public class Signal extends Verticle {
 			  obj = new JsonObject(graph.toJson());
 			}
 			event.reply(obj);
+		}
+	}
+	
+	/**
+	 * Tracks update for a single dependency. This class will listen on a
+	 * dependency's publish channel for updates and record the values as they
+	 * are received.
+	 * 
+	 * @author bcard
+	 * 
+	 */
+	private class DependencyUpdateHandler extends HandlerApplicator<Long> {
+
+		private final SignalGraph symbol;
+		
+		public DependencyUpdateHandler(String address, SignalGraph symbol) {
+			super(address);
+			this.symbol = symbol;
+		}
+		
+		@Override
+		public void handle(Message<Long> event) {
+			processDependencyUpdate(symbol, event.body());
+		}
+	}
+	
+	private void processDependencyUpdate(SignalGraph graph, Long value) {
+		lastValues.put(graph, value);
+		
+		if (numberOfDependencies == 1) {
+			updateValue(value);
+			return;
+		}
+		
+		if (lastValues.size() == numberOfDependencies) {
+			// we've received an update from each dependency so
+			// we should be clear to calculate the value.
+			
+			
+			Long[] args = new Long[discoveredDependencies.size()];
+			for (int i=0; i<discoveredDependencies.size(); i++) {
+				SignalGraph currentGraph = discoveredDependencies.get(i);
+				args[i] = lastValues.get(currentGraph);
+			}
+			
+			// just two values for now
+			Long result = operator.call(args[0], args[1]);
+			updateValue(result);
 		}
 	}
 	
