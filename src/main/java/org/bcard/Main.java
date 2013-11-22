@@ -17,7 +17,7 @@ public class Main extends Verticle {
 		container.logger().info("Starting Application...");
 
 		// start command processor
-		container.deployVerticle("org.bcard.command.CommandProcessor");
+		container.deployVerticle(CommandProcessor.class.getName());
 
 		// command line interface
 		handler = new InputHandler(vertx);

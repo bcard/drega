@@ -2,11 +2,14 @@ package org.bcard.integration.java;
 
 import static org.vertx.testtools.VertxAssert.testComplete;
 
+import org.bcard.command.CombineSymbols;
+import org.bcard.command.CommandProcessor;
 import org.bcard.command.CreateSignal;
 import org.bcard.command.Increment;
 import org.bcard.command.MapSignal;
 import org.bcard.command.PrintGraph;
 import org.bcard.command.PrintSignal;
+import org.bcard.signal.CombineOperator;
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
@@ -109,6 +112,52 @@ public class SignalIntegrationTest extends TestVerticle {
 						// send the increment command
 						Increment increment = new Increment("x");
 						increment.execute(container, vertx, new DummyHandler());
+					}
+				});
+			}
+		});
+	}
+	
+	@Test
+	public void testSimpleCombine() {
+		CreateSignal create = new CreateSignal("x", 0);
+		create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				CreateSignal create = new CreateSignal("y", 1);
+				create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+
+					@Override
+					public void handle(AsyncResult<String> event) {
+						CombineSymbols create = new CombineSymbols("z", "x", "y", CombineOperator.ADD);
+						create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+
+							@Override
+							public void handle(AsyncResult<String> event) {
+								Increment increment = new Increment("x");
+								increment.execute(container, vertx, new Handler<AsyncResult<String>>() {
+
+									@Override
+									public void handle(AsyncResult<String> event) {
+										// we should get an update after y is incremented
+										vertx.eventBus().registerHandler("signals.z.value", new Handler<Message<Long>>() {
+
+											@Override
+											public void handle(Message<Long> event) {
+												VertxAssert.assertEquals(3L, event.body().longValue());
+												testComplete();
+											}
+										});
+										
+										Increment increment = new Increment("y");
+										increment.execute(container, vertx, new DummyHandler());
+									}
+									
+								});
+								
+							}
+						});
 					}
 				});
 			}
