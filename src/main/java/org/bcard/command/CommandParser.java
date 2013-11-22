@@ -14,19 +14,24 @@ public class CommandParser {
 
 	public static final String VARIABLE = "[a-zA-Z0-9]+";
 	
-	public static final String ASSIGNMENT_WITH_VALUE = VARIABLE+"\\s?=\\s?\\d+";
+	public static final String WS = "\\s?";
+	
+	public static final String ASSIGNMENT_WITH_VALUE = VARIABLE+WS+"="+WS+"\\d+";
 
-	public static final String ASSIGNMENT_WITHOUT_VALUE = "\\s?"+VARIABLE+"+\\s?";
+	public static final String ASSIGNMENT_WITHOUT_VALUE = WS+VARIABLE+"+"+WS;
 	
 	public static final String EXIT = "exit";
 	
 	public static final String INCREMENT = ASSIGNMENT_WITHOUT_VALUE+"\\+\\+";
 	
-	public static final String MAP_SIGNAL = VARIABLE+"\\s?=\\s?"+VARIABLE;
+	public static final String MAP_SIGNAL = VARIABLE+WS+"="+WS+VARIABLE;
 	
 	public static final String GRAPH = "graph "+VARIABLE;
 	
-	public static final String COMBINE_ADDITION = VARIABLE+"="+VARIABLE+"\\+"+VARIABLE;
+	public static final String COMBINE_ADDITION = VARIABLE+WS+"="+WS+VARIABLE+WS+"\\+"+WS+VARIABLE;
+	
+	public static final String COMBINE_SUBTRACTION = VARIABLE+WS+"="+WS+VARIABLE+WS+"\\-"+WS+VARIABLE;
+	
 	
 	public static ICommand parse(String input) {
 		ICommand command = null;
@@ -51,6 +56,9 @@ public class CommandParser {
 		} else if (matches(COMBINE_ADDITION, input)) {
 			String[] vals = input.split("[=+]");
 			command = new CombineSymbols(vals[0], vals[1], vals[2], CombineOperator.ADD);
+		} else if (matches(COMBINE_SUBTRACTION, input)) {
+			String[] vals = input.split("[=-]");
+			command = new CombineSymbols(vals[0], vals[1], vals[2], CombineOperator.SUBTRACT);
 		}
 		
 		if (command == null) {

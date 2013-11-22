@@ -169,6 +169,21 @@ public class Signal extends Verticle {
 		}
 	}
 	
+	private class GraphReceiver extends HandlerApplicator<JsonObject> {
+
+		public GraphReceiver(String address, int index) {
+			super(address);
+		}
+
+		@Override
+		public void handle(Message<JsonObject> event) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		
+	}
+	
 	/**
 	 * Tracks update for a single dependency. This class will listen on a
 	 * dependency's publish channel for updates and record the values as they
@@ -226,6 +241,7 @@ public class Signal extends Verticle {
 	 */
 	private void updateValue(long newValue) {
 		value = newValue;
+		new PrintHandler(null).handle(null);
 		vertx.eventBus().publish("signals."+id+".value", value);
 	}
 

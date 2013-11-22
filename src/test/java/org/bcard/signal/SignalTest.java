@@ -26,10 +26,11 @@ import org.vertx.java.core.logging.Logger;
 import org.vertx.java.platform.Container;
 
 /**
- * Tests the all important {@link Signal} class.
+ * Tests the all important {@link Signal} class. This class tries to handle
+ * cases that are difficult to reproduce in the integration tests.
  * 
  * @author bcard
- *
+ * 
  */
 public class SignalTest {
 
@@ -97,39 +98,6 @@ public class SignalTest {
 		stringCaptor.getValue().handle(mockMessage);
 		
 		verify(eventBus).publish(eq("signals."+ID+".value"), eq(1L));
-	}
-	
-	// TODO this is no longer applicable because the registration has been moved
-	// inside a another call back.  Should we keep this test of should this logic be
-	// replaced by the integration tests?
-//	@Test
-//	public void testListenOnDependencyUpdates() {
-//		JsonArray array = new JsonArray();
-//		array.addString("y");
-//		config.putArray("dependencies", array);
-//		config.removeField("initialValue");
-//		
-//		Signal signal = startSignal();
-//		
-//		verify(eventBus).registerHandler(eq("signals.y.value"), longCaptor.capture());
-//		
-//		Message<Long> mockMessage = mock(Message.class);
-//		when(mockMessage.body()).thenReturn(20L);
-//		longCaptor.getValue().handle(mockMessage);
-//		
-//		assertEquals(20, signal.value);
-//	}
-	
-	@Test
-	public void testMapToOtherSignal() {
-		JsonArray array = new JsonArray();
-		array.addString("y");
-		config.putArray("dependencies", array);
-		config.removeField("initialValue");
-		
-		Signal signal = startSignal();
-		
-//		verify(eventBus).send(eq("signals.y"), eq("sendGraph"), any(Handler>.class));
 	}
 	
 	// TODO, if we haven't yet received all of our dependencies graphs yet

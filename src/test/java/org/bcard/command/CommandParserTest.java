@@ -86,6 +86,27 @@ public class CommandParserTest {
 		assertEquals(CombineOperator.ADD, command.operator);
 	}
 	
+	@Test
+	public void testAddingSignalsWithSpaces() {
+		CombineSymbols command = (CombineSymbols)parse("x = y + z");
+		
+		assertEquals(CombineOperator.ADD, command.operator);
+	}
+	
+	@Test
+	public void testSubtractingSignals() {
+		CombineSymbols command = (CombineSymbols)parse("x=y-z");
+		
+		assertEquals(CombineOperator.SUBTRACT, command.operator);
+	}
+	
+	@Test
+	public void testSubtractingSignalsWithSpaces() {
+		CombineSymbols command = (CombineSymbols)parse("x = y - z");
+		
+		assertEquals(CombineOperator.SUBTRACT, command.operator);
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {

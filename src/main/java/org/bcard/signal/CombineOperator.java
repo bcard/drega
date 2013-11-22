@@ -15,6 +15,12 @@ public enum CombineOperator implements Func2<Long, Long, Long> {
 		public Long call(Long arg1, Long arg2) {
 			return arg1 + arg2;
 		}
+	},
+	SUBTRACT {
+		@Override
+		public Long call(Long arg1, Long arg2) {
+			return arg1 - arg2;
+		}
 	};
 
 }
