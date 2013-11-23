@@ -65,7 +65,7 @@ public class Signal extends Verticle {
 	private int numberOfDependencies;
 
 	@Override
-	public void start(final Future<Void> startedResult) {
+	public void start(Future<Void> startedResult) {
 		JsonObject config = container.config();
 		id = config.getString("id");
 		container.logger().info("Starting Signal " + id);
@@ -87,51 +87,17 @@ public class Signal extends Verticle {
 			graph = new SignalGraph(id);
 			startedResult.setResult(null);
 		} else {
-			for (Object dep : dependencies) {
-				String signal = (String) dep;
-
+			for (int i=0; i<dependencies.size(); i++) {
+				String signal = (String)dependencies.get(i);
+			
 				// tell our dependencies to send us their graphs
-				// TODO, make this an inner class, set index to add to
-				// discoveredDependencies
-				// so that they are specified in iteration order. This way we
-				// can ensure that
-				// the combine function is using the correct argument order
-				vertx.eventBus().send("signals." + signal + ".sendGraph", "",
-						new Handler<Message<JsonObject>>() {
-
-							@Override
-							public void handle(Message<JsonObject> event) {
-								SignalGraph found = SignalGraph.fromJson(event
-										.body().encodePrettily());
-								discoveredDependencies.add(found);
-
-								// register for updates
-								DependencyUpdateHandler handler = new DependencyUpdateHandler(
-										"signals." + found.getId() + ".value",
-										found);
-								handler.apply(vertx.eventBus());
-
-								if (discoveredDependencies.size() >= numberOfDependencies) {
-									container
-											.logger()
-											.info(id
-													+ " received dependency graphs from "
-													+ dependencies);
-									SignalGraph[] graphs = discoveredDependencies
-											.toArray(new SignalGraph[0]);
-									graph = new SignalGraph(id, graphs);
-									startedResult.setResult(null);
-								}
-							}
-						});
+				vertx.eventBus().send("signals."+signal+".sendGraph", "", new GraphReceiver(i, startedResult));
 			}
 		}
 
 		PrintHandler printer = new PrintHandler("signals." + id + ".print");
-		PrintGraphHandler printGraph = new PrintGraphHandler("signals." + id
-				+ ".print.graph");
-		IncrementHandler incrementer = new IncrementHandler("signals." + id
-				+ ".increment");
+		PrintGraphHandler printGraph = new PrintGraphHandler("signals." + id + ".print.graph");
+		IncrementHandler incrementer = new IncrementHandler("signals." + id + ".increment");
 		GraphHandler grapher = new GraphHandler("signals." + id + ".sendGraph");
 		BlockHandler blocker = new BlockHandler("signals." + id + ".block");
 
@@ -195,16 +161,62 @@ public class Signal extends Verticle {
 		}
 	}
 
-	private class GraphReceiver extends HandlerApplicator<JsonObject> {
+	/**
+	 * Private class that handles receiving the dependency graphs from other
+	 * signals. This class saves the graphs into the
+	 * {@link Signal#discoveredDependencies} array <i>in the order that they are
+	 * declared in the Signal's config file, not the order they arrive</i>. When
+	 * all of the dependencies have been received then the {@code finishHandler}
+	 * is called.
+	 * 
+	 * @author bcard
+	 * 
+	 */
+	private class GraphReceiver implements Handler<Message<JsonObject>> {
 
-		public GraphReceiver(String address, int index) {
-			super(address);
+		/**
+		 * The index of this dependency. This is the index to place the
+		 * dependency in the {@link Signal#discoveredDependencies} list.
+		 */
+		private final int index;
+		
+		/**
+		 * Handler to call when all updates have been received.
+		 */
+		private final Future<Void> finishHandler;
+		
+		/**
+		 * Creates a new {@link GraphReceiver}.
+		 * 
+		 * @param index
+		 *            index in {@link Signal#discoveredDependencies} that this
+		 *            dependency corresponds to
+		 * @param finishHandler
+		 *            handler to call when all dependencies have been received
+		 */
+		public GraphReceiver(int index, Future<Void> finishHandler) {
+			this.index = index;
+			this.finishHandler = finishHandler;
 		}
 
 		@Override
 		public void handle(Message<JsonObject> event) {
-			// TODO Auto-generated method stub
+			SignalGraph found = SignalGraph.fromJson(event
+					.body().encodePrettily());
+			discoveredDependencies.add(index, found);
 
+			// register for updates
+			DependencyUpdateHandler handler = new DependencyUpdateHandler(
+					"signals." + found.getId() + ".value",
+					found);
+			handler.apply(vertx.eventBus());
+
+			if (discoveredDependencies.size() >= numberOfDependencies) {
+				container.logger().info(id+" received dependency graphs from "+discoveredDependencies);
+				SignalGraph[] graphs = discoveredDependencies.toArray(new SignalGraph[0]);
+				graph = new SignalGraph(id, graphs);
+				finishHandler.setResult(null);
+			}
 		}
 	}
 
