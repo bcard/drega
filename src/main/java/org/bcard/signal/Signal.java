@@ -1,21 +1,14 @@
 package org.bcard.signal;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.bcard.signal.SignalGraph;
 import org.vertx.java.core.Future;
-import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonArray;
+import org.vertx.java.core.impl.DefaultFutureResult;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
-
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 
 /**
  * A signal is the base construct in our functional reactive system. The signal
@@ -48,9 +41,7 @@ public class Signal extends Verticle {
 
 	private String id;
 
-	private SignalGraph graph;
-
-	private SignalGraph[] discoveredDependencies;
+	private DependencyTracker tracker;
 
 	private final Map<SignalGraph, Long> lastValues = new HashMap<SignalGraph, Long>();
 
@@ -62,42 +53,41 @@ public class Signal extends Verticle {
 	 */
 	private boolean blocked = false;
 
-	/**
-	 * The number of dependencies that this signal has. Once set this value
-	 * should not change.
-	 */
-	private int numberOfDependencies;
-
 	@Override
-	public void start(Future<Void> startedResult) {
+	public void start(final Future<Void> startedResult) {
 		JsonObject config = container.config();
 		id = config.getString("id");
 		container.logger().info("Starting Signal " + id);
 
+		if (config.getField("initialValue") != null) {
+			value = config.getLong("initialValue");
+		}
+		
 		if (config.getField("operator") != null) {
 			String name = config.getString("operator");
 			operator = CombineOperator.valueOf(name);
 		}
 
-		if (config.getField("initialValue") != null) {
-			value = config.getLong("initialValue");
-		}
-
-		final JsonArray dependencies = config.getArray("dependencies");
-		numberOfDependencies = dependencies == null ? 0 : dependencies.size();
-		discoveredDependencies = new SignalGraph[numberOfDependencies];
-		if (numberOfDependencies == 0) {
-			graph = new SignalGraph(id);
-			startedResult.setResult(null);
-		} else {
-			for (int i=0; i<dependencies.size(); i++) {
-				String signal = (String)dependencies.get(i);
+		tracker = new DependencyTracker(id, config);
+		tracker.gatherDependencies(vertx.eventBus(), new DefaultFutureResult<Void>() {
 			
-				// tell our dependencies to send us their graphs
-				vertx.eventBus().send("signals."+signal+".sendGraph", "", new GraphReceiver(i, startedResult));
+			@Override
+			public DefaultFutureResult<Void> setResult(Void result) {
+				// now that all of our dependencies have been calculated we
+				// should be able to subscribe for updates
+				
+				for (SignalGraph dep : tracker.getDependencies()) {
+					DependencyUpdateHandler handler = new DependencyUpdateHandler(
+							"signals." + dep.getId() + ".value",
+							dep);
+					handler.apply(vertx.eventBus());
+				}
+				startedResult.setResult(result);
+				return this;
 			}
-		}
-
+			
+		});
+		
 		PrintHandler printer = new PrintHandler("signals." + id + ".print");
 		PrintGraphHandler printGraph = new PrintGraphHandler("signals." + id + ".print.graph");
 		IncrementHandler incrementer = new IncrementHandler("signals." + id + ".increment");
@@ -132,7 +122,7 @@ public class Signal extends Verticle {
 		@Override
 		public void handle(Message<String> event) {
 			container.logger().info(
-					"Dependency Graph for " + id + ":\n" + graph);
+					"Dependency Graph for " + id + ":\n" + tracker.getGraph());
 		}
 	}
 
@@ -157,85 +147,13 @@ public class Signal extends Verticle {
 		@Override
 		public void handle(Message<String> event) {
 			JsonObject obj = null;
-			if (graph != null) {
-				obj = new JsonObject(graph.toJson());
+			if (tracker.getGraph() != null) {
+				obj = new JsonObject(tracker.getGraph().toJson());
 			}
 			event.reply(obj);
 		}
 	}
 
-	/**
-	 * Private class that handles receiving the dependency graphs from other
-	 * signals. This class saves the graphs into the
-	 * {@link Signal#discoveredDependencies} array <i>in the order that they are
-	 * declared in the Signal's config file, not the order they arrive</i>. When
-	 * all of the dependencies have been received then the {@code finishHandler}
-	 * is called.
-	 * 
-	 * @author bcard
-	 * 
-	 */
-	private class GraphReceiver implements Handler<Message<JsonObject>> {
-
-		/**
-		 * The index of this dependency. This is the index to place the
-		 * dependency in the {@link Signal#discoveredDependencies} list.
-		 */
-		private final int index;
-		
-		/**
-		 * Handler to call when all updates have been received.
-		 */
-		private final Future<Void> finishHandler;
-		
-		/**
-		 * Creates a new {@link GraphReceiver}.
-		 * 
-		 * @param index
-		 *            index in {@link Signal#discoveredDependencies} that this
-		 *            dependency corresponds to
-		 * @param finishHandler
-		 *            handler to call when all dependencies have been received
-		 */
-		public GraphReceiver(int index, Future<Void> finishHandler) {
-			this.index = index;
-			this.finishHandler = finishHandler;
-		}
-
-		@Override
-		public void handle(Message<JsonObject> event) {
-			SignalGraph found = SignalGraph.fromJson(event
-					.body().encodePrettily());
-			discoveredDependencies[index] = found;
-
-			// register for updates
-			DependencyUpdateHandler handler = new DependencyUpdateHandler(
-					"signals." + found.getId() + ".value",
-					found);
-			handler.apply(vertx.eventBus());
-
-			int size = 0;
-			for (int i=0; i<discoveredDependencies.length; i++) {
-				if (discoveredDependencies[i] != null) {
-					size++;
-				}
-			}
-			
-			if (size >= numberOfDependencies) {
-				// a formatting function to make our output a little nicer
-				Function<SignalGraph, String> justId = new Function<SignalGraph, String>() {
-					
-					@Override
-					public String apply(SignalGraph graph) {
-						return graph.getId();
-					}
-				};
-				container.logger().info(id+" received dependency graphs from "+Iterables.transform(Arrays.asList(discoveredDependencies), justId));
-				graph = new SignalGraph(id, discoveredDependencies);
-				finishHandler.setResult(null);
-			}
-		}
-	}
 
 	private class BlockHandler extends HandlerApplicator<Boolean> {
 
@@ -247,9 +165,8 @@ public class Signal extends Verticle {
 		public void handle(Message<Boolean> event) {
 			blocked = event.body();
 		}
-
 	}
-
+	
 	/**
 	 * Tracks update for a single dependency. This class will listen on a
 	 * dependency's publish channel for updates and record the values as they
@@ -269,31 +186,28 @@ public class Signal extends Verticle {
 
 		@Override
 		public void handle(Message<Long> event) {
-			processDependencyUpdate(symbol, event.body());
-		}
-	}
+			lastValues.put(symbol, event.body());
 
-	private void processDependencyUpdate(SignalGraph graph, Long value) {
-		lastValues.put(graph, value);
-
-		if (numberOfDependencies == 1) {
-			updateValue(value);
-			return;
-		}
-
-		if (lastValues.size() == numberOfDependencies) {
-			// we've received an update from each dependency so
-			// we should be clear to calculate the value.
-
-			Long[] args = new Long[discoveredDependencies.length];
-			for (int i = 0; i < discoveredDependencies.length; i++) {
-				SignalGraph currentGraph = discoveredDependencies[i];
-				args[i] = lastValues.get(currentGraph);
+			if (tracker.getNumberOfDependencies() == 1) {
+				updateValue(event.body());
+				return;
 			}
 
-			// just two values for now
-			Long result = operator.call(args[0], args[1]);
-			updateValue(result);
+			if (lastValues.size() == tracker.getNumberOfDependencies()) {
+				// we've received an update from each dependency so
+				// we should be clear to calculate the value.
+
+				List<SignalGraph> graphs = tracker.getDependencies();
+				Long[] args = new Long[tracker.getNumberOfDependencies()];
+				for (int i = 0; i < tracker.getNumberOfDependencies(); i++) {
+					SignalGraph currentGraph = graphs.get(i);
+					args[i] = lastValues.get(currentGraph);
+				}
+
+				// just two values for now
+				Long result = operator.call(args[0], args[1]);
+				updateValue(result);
+			}
 		}
 	}
 
