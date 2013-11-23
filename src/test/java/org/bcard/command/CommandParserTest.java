@@ -107,6 +107,11 @@ public class CommandParserTest {
 		assertEquals(CombineOperator.SUBTRACT, command.operator);
 	}
 	
+	@Test
+	public void testBlock() {
+		assertThat(parse("block x"), instanceOf(BlockSignal.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {

@@ -2,8 +2,8 @@ package org.bcard.integration.java;
 
 import static org.vertx.testtools.VertxAssert.testComplete;
 
+import org.bcard.command.BlockSignal;
 import org.bcard.command.CombineSymbols;
-import org.bcard.command.CommandProcessor;
 import org.bcard.command.CreateSignal;
 import org.bcard.command.Increment;
 import org.bcard.command.MapSignal;
@@ -18,7 +18,7 @@ import org.vertx.testtools.TestVerticle;
 import org.vertx.testtools.VertxAssert;
 
 /**
- * Integration tests for the signals so we can build more complicated scenerios.
+ * Integration tests for the signals so we can build more complicated scenarios.
  * 
  * @author bcard
  * 
@@ -27,8 +27,7 @@ public class SignalIntegrationTest extends TestVerticle {
 
 	@Test
 	public void testIncrement() {
-		CreateSignal create = new CreateSignal("x", 0);
-		create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+		createSignalX(new Handler<AsyncResult<String>>() {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
@@ -50,8 +49,7 @@ public class SignalIntegrationTest extends TestVerticle {
 	
 	@Test
 	public void testPrintGraph() {
-		CreateSignal create = new CreateSignal("x", 0);
-		create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+		createSignalX(new Handler<AsyncResult<String>>() {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
@@ -69,8 +67,7 @@ public class SignalIntegrationTest extends TestVerticle {
 	
 	@Test
 	public void testPrint() {
-		CreateSignal create = new CreateSignal("x", 0);
-		create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+		createSignalX(new Handler<AsyncResult<String>>() {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
@@ -88,8 +85,7 @@ public class SignalIntegrationTest extends TestVerticle {
 	
 	@Test
 	public void testMapSingle() {
-		CreateSignal create = new CreateSignal("x", 0);
-		create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+		createSignalX(new Handler<AsyncResult<String>>() {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
@@ -120,8 +116,7 @@ public class SignalIntegrationTest extends TestVerticle {
 	
 	@Test
 	public void testSimpleCombine() {
-		CreateSignal create = new CreateSignal("x", 0);
-		create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+		createSignalX(new Handler<AsyncResult<String>>() {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
@@ -164,8 +159,61 @@ public class SignalIntegrationTest extends TestVerticle {
 		});
 	}
 	
+	@Test
+	public void testBlock() {
+		createSignalX(new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				vertx.eventBus().registerHandler("signals.x.value", new Handler<Message<Long>>() {
+
+					@Override
+					public void handle(Message<Long> event) {
+						VertxAssert.fail();
+						testComplete();
+					}
+				});
+				
+				BlockSignal block = new BlockSignal("x");
+				block.execute(container, vertx, new Handler<AsyncResult<String>>() {
+
+					@Override
+				    public void handle(AsyncResult<String> event) {
+					Increment increment = new Increment("x");
+					increment.execute(container, vertx,new Handler<AsyncResult<String>>() {
+
+							@Override
+							public void handle(AsyncResult<String> event) {
+								createSignalY(new Handler<AsyncResult<String>>() {
+
+									@Override
+									public void handle(AsyncResult<String> event) {
+
+										// by this point the
+										// event bus has had
+										// enough time to send
+										// out any messages it
+										// needs to, if we get
+										// here we can call
+										// it a pass
+										testComplete();
+									}
+								});
+							}
+						});
+					}
+					
+				});
+			}
+			
+		});
+	}
+	
 	// --------------- Helper Methods ---------------- //
 
+	/**
+	 * Start function used to kick off our tests.
+	 */
 	@Override
 	public void start() {
 		// Make sure we call initialize() - this sets up the assert stuff so
@@ -175,6 +223,28 @@ public class SignalIntegrationTest extends TestVerticle {
 		// contain the name of the module so you
 		// don't have to hardecode it in your tests
 		startTests();
+	}
+	
+	/**
+	 * Creates a new signal with an id of {@code x} and a value of {@code 0}.
+	 * 
+	 * @param handler
+	 *            the handler to be called after the signal has been created
+	 */
+	private void createSignalX(Handler<AsyncResult<String>> handler) {
+		CreateSignal create = new CreateSignal("x", 0);
+		create.execute(container, vertx,  handler);
+	}
+	
+	/**
+	 * Creates a new signal with an id of {@code y} and a value of {@code 1}.
+	 * 
+	 * @param handler
+	 *            the handler to be called after the signal has been created
+	 */
+	private void createSignalY(Handler<AsyncResult<String>> handler) {
+		CreateSignal create = new CreateSignal("y", 1);
+		create.execute(container, vertx,  handler);
 	}
 
 	private static final class DummyHandler implements

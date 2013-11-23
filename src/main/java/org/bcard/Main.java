@@ -8,6 +8,13 @@ import org.vertx.java.core.Vertx;
 import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.platform.Verticle;
 
+/**
+ * Main entry point into the application. This class starts the REPL and command
+ * processing verticles.
+ * 
+ * @author bcard
+ * 
+ */
 public class Main extends Verticle {
 	
 	InputHandler handler;
