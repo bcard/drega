@@ -100,9 +100,6 @@ public class SignalTest {
 		verify(eventBus).publish(eq("signals."+ID+".value"), eq(1L));
 	}
 	
-	// TODO, if we haven't yet received all of our dependencies graphs yet
-	// then we shouldn't transmit our own graph
-	
 	@Test
 	public void testReplyWithSimpleGraph() throws Exception {
 		startSignal();
@@ -122,6 +119,16 @@ public class SignalTest {
 		
 		JSONAssert.assertEquals(expectedJson, recievedJson, false);
 	}
+	
+	// TODO this logic is in the signal class now
+//	@Test
+//	public void testRegisterForDependencyUpdates() {
+//		DependencyTracker tracker = newTrackerWithTwoDependencies();
+//		tracker.gatherDependencies(eventBus, doneHandler);
+//		
+//		verify(eventBus).registerHandler(eq("signals.y.value"), Matchers.<Handler<Message<Long>>> any());
+//		verify(eventBus).registerHandler(eq("signals.z.value"), Matchers.<Handler<Message<Long>>> any());
+//	}
 	
 	@Test
 	public void testPrintGraph() {

@@ -2,12 +2,15 @@ package org.bcard.signal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -15,6 +18,7 @@ import org.vertx.java.core.Future;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.eventbus.impl.JsonObjectMessage;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 
@@ -33,6 +37,9 @@ public class DependencyTrackerTest {
 	
 	@Mock
 	private EventBus eventBus;
+	
+	@Captor
+	private ArgumentCaptor<Handler<Message<JsonObject>>> captor;
 	
 	@Before
 	public void setup() {
@@ -84,16 +91,41 @@ public class DependencyTrackerTest {
 		verify(eventBus).send(eq("signals.y.sendGraph"), eq(""), Matchers.<Handler<Message<String>>> any());
 		verify(eventBus).send(eq("signals.z.sendGraph"), eq(""), Matchers.<Handler<Message<String>>> any());
 	}
-
-	// TODO this logic is in the signal class now
-//	@Test
-//	public void testRegisterForDependencyUpdates() {
-//		DependencyTracker tracker = newTrackerWithTwoDependencies();
-//		tracker.gatherDependencies(eventBus, doneHandler);
-//		
-//		verify(eventBus).registerHandler(eq("signals.y.value"), Matchers.<Handler<Message<Long>>> any());
-//		verify(eventBus).registerHandler(eq("signals.z.value"), Matchers.<Handler<Message<Long>>> any());
-//	}
+	
+	// test that the updates are ordered correctly
+	@Test
+	public void testThatUpatesAreOrderedCorrectly() {
+		DependencyTracker tracker = newTrackerWithTwoDependencies();
+		tracker.gatherDependencies(eventBus, doneHandler);
+		
+		verify(eventBus).send(eq("signals.y.sendGraph"), eq(""), captor.capture());
+		verify(eventBus).send(eq("signals.z.sendGraph"), eq(""), captor.capture());
+		
+		List<Handler<Message<JsonObject>>> values = captor.getAllValues();
+		Handler<Message<JsonObject>> first = values.get(0);
+		Handler<Message<JsonObject>> second = values.get(1);
+		
+		// handle message for z first
+		JsonObject zObj = new JsonObject(new SignalGraph("z").toJson());
+		JsonObjectMessage zMsg = new JsonObjectMessage(true, "signals.z.sendGraph", zObj);
+		second.handle(zMsg);
+		
+		JsonObject yObj = new JsonObject(new SignalGraph("y").toJson());
+		JsonObjectMessage yMsg = new JsonObjectMessage(true, "signals.y.sendGraph", yObj);
+		first.handle(yMsg);
+		
+		SignalGraph graph = tracker.getGraph();
+		List<SignalGraph> deps = graph.getDependentSignals();
+		
+		// even though z was first we still should have the correct order here
+		assertEquals("y", deps.get(0).getId());
+		assertEquals("z", deps.get(1).getId());
+	}
+	
+	@Test
+	public void testUpdatesAreSavedInOrder() {
+		
+	}
 	
 	// ----------------- Helper Methods ------------------//
 	
