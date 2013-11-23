@@ -112,6 +112,11 @@ public class CommandParserTest {
 		assertThat(parse("block x"), instanceOf(BlockSignal.class));
 	}
 	
+	@Test
+	public void testUnBlock() {
+		assertThat(parse("unblock x"), instanceOf(BlockSignal.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {

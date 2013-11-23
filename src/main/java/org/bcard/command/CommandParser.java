@@ -34,6 +34,8 @@ public class CommandParser {
 	
 	public static final String BLOCK = "block "+VARIABLE;
 	
+	public static final String UNBLOCK = "unblock "+VARIABLE;
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
 		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
@@ -56,7 +58,10 @@ public class CommandParser {
 			command = new PrintGraph(vals[1]);
 		} else if (matches(BLOCK, input)) {
 			String[] vals = input.split(" ");
-			command = new BlockSignal(vals[1]);
+			command = new BlockSignal(vals[1], true);
+		} else if (matches(UNBLOCK, input)) {
+			String[] vals = input.split(" ");
+			command = new BlockSignal(vals[1], false);
 		} else if (matches(COMBINE_ADDITION, input)) {
 			String[] vals = input.split("[=+]");
 			command = new CombineSymbols(vals[0], vals[1], vals[2], CombineOperator.ADD);

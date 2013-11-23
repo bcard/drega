@@ -174,7 +174,7 @@ public class SignalIntegrationTest extends TestVerticle {
 					}
 				});
 				
-				BlockSignal block = new BlockSignal("x");
+				BlockSignal block = new BlockSignal("x", true);
 				block.execute(container, vertx, new Handler<AsyncResult<String>>() {
 
 					@Override
