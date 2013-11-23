@@ -134,7 +134,7 @@ public class Signal extends Verticle {
 
 		@Override
 		public void handle(Message<String> event) {
-			updateValue(value + 1);
+			updateValue(value + 1, null);
 		}
 	}
 
@@ -175,7 +175,7 @@ public class Signal extends Verticle {
 	 * @author bcard
 	 * 
 	 */
-	private class DependencyUpdateHandler extends HandlerApplicator<Long> {
+	/*protected for testing*/ class DependencyUpdateHandler extends HandlerApplicator<JsonObject> {
 
 		private final SignalGraph symbol;
 
@@ -185,11 +185,16 @@ public class Signal extends Verticle {
 		}
 
 		@Override
-		public void handle(Message<Long> event) {
-			lastValues.put(symbol, event.body());
+		public void handle(Message<JsonObject> event) {
+			JsonObject obj = event.body();
+			Long newValue = obj.getLong("value");
+			SignalChain chain = SignalChain.fromJson(obj.getObject("chain").toString());
+			
+			// TODO should not set last value until we know we can trust this update
+			lastValues.put(symbol, newValue);
 
 			if (tracker.getNumberOfDependencies() == 1) {
-				updateValue(event.body());
+				updateValue(newValue, chain);
 				return;
 			}
 
@@ -206,7 +211,7 @@ public class Signal extends Verticle {
 
 				// just two values for now
 				Long result = operator.call(args[0], args[1]);
-				updateValue(result);
+				updateValue(result, chain);
 			}
 		}
 	}
@@ -218,11 +223,20 @@ public class Signal extends Verticle {
 	 * @param newValue
 	 *            the new value that this signal should represent
 	 */
-	private void updateValue(long newValue) {
+	private void updateValue(long newValue, SignalChain chain) {
 		value = newValue;
 		new PrintHandler(null).handle(null);
-		if (!blocked) {
-			vertx.eventBus().publish("signals." + id + ".value", value);
+		if (!blocked && tracker.getGraph() != null) {
+			if (chain == null) {
+				chain = new SignalChain(tracker.getGraph());
+			} else {
+				chain.chain(tracker.getGraph());
+			}
+			JsonObject msg = new JsonObject();
+			msg.putNumber("value", value);
+			JsonObject chainJson = new JsonObject(chain.toJson());
+			msg.putObject("chain", chainJson);
+			vertx.eventBus().publish("signals." + id + ".value", msg);
 		}
 	}
 

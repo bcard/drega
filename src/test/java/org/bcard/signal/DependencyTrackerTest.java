@@ -122,11 +122,6 @@ public class DependencyTrackerTest {
 		assertEquals("z", deps.get(1).getId());
 	}
 	
-	@Test
-	public void testUpdatesAreSavedInOrder() {
-		
-	}
-	
 	// ----------------- Helper Methods ------------------//
 	
 	private DependencyTracker newTrackerWithNoDependencies() {
@@ -137,11 +132,16 @@ public class DependencyTrackerTest {
 	
 	private DependencyTracker newTrackerWithTwoDependencies() {
 		JsonObject config = new JsonObject();
-		JsonArray array = new JsonArray();
-		array.addString("y");
-		array.addString("z");
-		config.putArray("dependencies", array);
+		putDependencies(config, "y", "z");
 		DependencyTracker tracker = new DependencyTracker(ID, config);
 		return tracker;
+	}
+	
+	public static void putDependencies(JsonObject config, String... dependencies) {
+		JsonArray array = new JsonArray();
+		for (int i=0; i<dependencies.length; i++) {
+			array.addString(dependencies[i]);
+		}
+		config.putArray("dependencies", array);
 	}
 }

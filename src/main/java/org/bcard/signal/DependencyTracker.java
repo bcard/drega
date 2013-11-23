@@ -72,8 +72,8 @@ public class DependencyTracker {
 	 */
 	public void gatherDependencies(EventBus eventBus, Future<Void> doneHandler) {
 		if (dependencies.size() == 0) {
-			doneHandler.setResult(null);
 			graph = new SignalGraph(id);
+			doneHandler.setResult(null);
 		} else {
 			for (int i=0; i<dependencies.size(); i++) {
 				String signal = (String)dependencies.get(i);

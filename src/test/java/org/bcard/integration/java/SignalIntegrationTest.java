@@ -14,6 +14,7 @@ import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.json.JsonObject;
 import org.vertx.testtools.TestVerticle;
 import org.vertx.testtools.VertxAssert;
 
@@ -31,14 +32,7 @@ public class SignalIntegrationTest extends TestVerticle {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
-				vertx.eventBus().registerHandler("signals.x.value", new Handler<Message<Long>>() {
-
-					@Override
-					public void handle(Message<Long> event) {
-						VertxAssert.assertEquals(1L, event.body().longValue());
-						testComplete();
-					}
-				});
+				assertValueWillBe(1L, "x");
 
 				// send the increment command
 				Increment increment = new Increment("x");
@@ -96,14 +90,7 @@ public class SignalIntegrationTest extends TestVerticle {
 					@Override
 					public void handle(AsyncResult<String> event) {
 						// check for increase on y
-						vertx.eventBus().registerHandler("signals.y.value", new Handler<Message<Long>>() {
-
-							@Override
-							public void handle(Message<Long> event) {
-								VertxAssert.assertEquals(1L, event.body().longValue());
-								testComplete();
-							}
-						});
+						assertValueWillBe(1L, "y");
 
 						// send the increment command
 						Increment increment = new Increment("x");
@@ -136,14 +123,7 @@ public class SignalIntegrationTest extends TestVerticle {
 									@Override
 									public void handle(AsyncResult<String> event) {
 										// we should get an update after y is incremented
-										vertx.eventBus().registerHandler("signals.z.value", new Handler<Message<Long>>() {
-
-											@Override
-											public void handle(Message<Long> event) {
-												VertxAssert.assertEquals(3L, event.body().longValue());
-												testComplete();
-											}
-										});
+										assertValueWillBe(3L, "z");
 										
 										Increment increment = new Increment("y");
 										increment.execute(container, vertx, new DummyHandler());
@@ -256,4 +236,14 @@ public class SignalIntegrationTest extends TestVerticle {
 		}
 	}
 
+	private void assertValueWillBe(final Long value, String id) {
+		vertx.eventBus().registerHandler("signals."+id+".value", new Handler<Message<JsonObject>>() {
+
+			@Override
+			public void handle(Message<JsonObject> event) {
+				VertxAssert.assertEquals(value, event.body().getLong("value"));
+				testComplete();
+			}
+		});
+	}
 }

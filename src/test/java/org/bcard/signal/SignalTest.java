@@ -3,11 +3,11 @@ package org.bcard.signal;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+import java.util.List;
+
+import org.bcard.signal.Signal.DependencyUpdateHandler;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,8 +19,8 @@ import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.eventbus.EventBus;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.eventbus.impl.JsonObjectMessage;
 import org.vertx.java.core.impl.DefaultFutureResult;
-import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.platform.Container;
@@ -51,6 +51,9 @@ public class SignalTest {
 	
 	@Captor
 	ArgumentCaptor<Handler<Message<Long>>> longCaptor;
+	
+	@Captor
+	private ArgumentCaptor<Handler<Message<JsonObject>>> handlerCaptor;
 	
 	JsonObject config = new JsonObject();
 	
@@ -97,7 +100,8 @@ public class SignalTest {
 		Message<String> mockMessage = mock(Message.class);
 		stringCaptor.getValue().handle(mockMessage);
 		
-		verify(eventBus).publish(eq("signals."+ID+".value"), eq(1L));
+		
+		verify(eventBus).publish(eq("signals."+ID+".value"), eq(createUpdateMsg(1L, ID)));
 	}
 	
 	@Test
@@ -120,15 +124,51 @@ public class SignalTest {
 		JSONAssert.assertEquals(expectedJson, recievedJson, false);
 	}
 	
-	// TODO this logic is in the signal class now
-//	@Test
-//	public void testRegisterForDependencyUpdates() {
-//		DependencyTracker tracker = newTrackerWithTwoDependencies();
-//		tracker.gatherDependencies(eventBus, doneHandler);
-//		
-//		verify(eventBus).registerHandler(eq("signals.y.value"), Matchers.<Handler<Message<Long>>> any());
-//		verify(eventBus).registerHandler(eq("signals.z.value"), Matchers.<Handler<Message<Long>>> any());
-//	}
+	@Test
+	public void testSignalUpdate() {
+		DependencyTrackerTest.putDependencies(config, "a");
+		
+		Signal signal = startSignal();
+		
+		// we are listing 'a' as a dependency, this will setup the message to return
+		// 'a's graph
+		verify(eventBus).send(eq("signals.a.sendGraph"), eq(""), handlerCaptor.capture());
+		Handler<Message<JsonObject>> first = handlerCaptor.getValue();
+		JsonObject zObj = new JsonObject(new SignalGraph("a").toJson());
+		JsonObjectMessage zMsg = new JsonObjectMessage(true, "signals.a.sendGraph", zObj);
+		first.handle(zMsg);
+		
+		SignalGraph graph = new SignalGraph("x");
+		DependencyUpdateHandler handler = signal.new DependencyUpdateHandler("address", graph);
+		JsonObject obj = new JsonObject();
+		obj.putNumber("value", 1);
+		SignalChain chain = new SignalChain(new SignalGraph("a"));
+		JsonObject chainObj = new JsonObject(chain.toJson());
+		obj.putObject("chain", chainObj);
+		
+		JsonObjectMessage msg = new JsonObjectMessage(true, "address", obj);
+		handler.handle(msg);
+		
+		assertEquals(1, signal.value);
+	}
+	
+	@Test
+	public void testUpdateNotSentWhenGraphNotYetPopulated() {
+		DependencyTrackerTest.putDependencies(config, "a");
+		Signal signal = startSignal();
+		SignalGraph graph = new SignalGraph("x");
+		DependencyUpdateHandler handler = signal.new DependencyUpdateHandler("address", graph);
+		JsonObject obj = new JsonObject();
+		obj.putNumber("value", 1);
+		SignalChain chain = new SignalChain(new SignalGraph("a"));
+		JsonObject chainObj = new JsonObject(chain.toJson());
+		obj.putObject("chain", chainObj);
+		
+		JsonObjectMessage msg = new JsonObjectMessage(true, "address", obj);
+		handler.handle(msg);
+		
+		verify(eventBus, times(0)).publish(eq("signals.x.value"), any());
+	}
 	
 	@Test
 	public void testPrintGraph() {
@@ -141,6 +181,8 @@ public class SignalTest {
 		verify(logger, atLeastOnce()).info(anyString());
 	}
 	
+	// ------------------ Helper Methods ---------------- //
+	
 	private Signal startSignal() {
 		Signal signal = new Signal();
 		signal.setContainer(container);
@@ -149,4 +191,30 @@ public class SignalTest {
 		signal.start(new DefaultFutureResult<Void>());
 		return signal;
 	}
+	
+	/**
+	 * 
+	 * @param value
+	 * @param ids
+	 *            dependencies from bottom to top. e.g. if a sends a message to
+	 *            b and the value of b is now 1 then you should invoke this
+	 *            methods as: {@code createUpdateMsg(1, "a", "b")}
+	 * @return
+	 */
+	private JsonObject createUpdateMsg(long value, String... ids) {
+		JsonObject obj = new JsonObject();
+		obj.putNumber("value", value);
+		SignalChain chain = new SignalChain(new SignalGraph(ids[0]));
+		if (ids.length > 1) {
+			for (int i=1; i<ids.length; i++) {
+				SignalGraph graph = new SignalGraph(ids[i]);
+				chain.chain(graph);
+			}
+		}
+		JsonObject chainObj = new JsonObject(chain.toJson());
+		obj.putObject("chain", chainObj);
+		
+		return obj;
+	}
+	
 }
