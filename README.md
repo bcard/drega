@@ -12,14 +12,6 @@ support simple arithmetic operations like y=x+1
 variables regex should not match numbers
 Need to think about having multiple windows so we can have a distributed application
 
+
 ---- Depdencency graph analysis to avoid glitches
-
-
-alexa = 3
-brian = alexa
-dog = brian - alexa
-
-     alexa = 4 
-      /     \
-  brian=4   dog=brian=alexa=3-4=-1
 

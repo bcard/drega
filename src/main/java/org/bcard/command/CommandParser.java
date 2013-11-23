@@ -12,7 +12,7 @@ import org.bcard.signal.CombineOperator;
  */
 public class CommandParser {
 
-	public static final String VARIABLE = "[a-zA-Z0-9]+";
+	public static final String VARIABLE = "[a-zA-Z][a-zA-Z0-9]*";
 	
 	public static final String WS = "\\s?";
 	

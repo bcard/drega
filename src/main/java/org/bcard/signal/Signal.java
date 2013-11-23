@@ -1,6 +1,7 @@
 package org.bcard.signal;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class Signal extends Verticle {
 
 	private SignalGraph graph;
 
-	private List<SignalGraph> discoveredDependencies;
+	private SignalGraph[] discoveredDependencies;
 
 	private final Map<SignalGraph, Long> lastValues = new HashMap<SignalGraph, Long>();
 
@@ -84,8 +85,7 @@ public class Signal extends Verticle {
 
 		final JsonArray dependencies = config.getArray("dependencies");
 		numberOfDependencies = dependencies == null ? 0 : dependencies.size();
-		discoveredDependencies = new ArrayList<SignalGraph>(
-				numberOfDependencies);
+		discoveredDependencies = new SignalGraph[numberOfDependencies];
 		if (numberOfDependencies == 0) {
 			graph = new SignalGraph(id);
 			startedResult.setResult(null);
@@ -206,7 +206,7 @@ public class Signal extends Verticle {
 		public void handle(Message<JsonObject> event) {
 			SignalGraph found = SignalGraph.fromJson(event
 					.body().encodePrettily());
-			discoveredDependencies.add(index, found);
+			discoveredDependencies[index] = found;
 
 			// register for updates
 			DependencyUpdateHandler handler = new DependencyUpdateHandler(
@@ -214,7 +214,14 @@ public class Signal extends Verticle {
 					found);
 			handler.apply(vertx.eventBus());
 
-			if (discoveredDependencies.size() >= numberOfDependencies) {
+			int size = 0;
+			for (int i=0; i<discoveredDependencies.length; i++) {
+				if (discoveredDependencies[i] != null) {
+					size++;
+				}
+			}
+			
+			if (size >= numberOfDependencies) {
 				// a formatting function to make our output a little nicer
 				Function<SignalGraph, String> justId = new Function<SignalGraph, String>() {
 					
@@ -223,9 +230,8 @@ public class Signal extends Verticle {
 						return graph.getId();
 					}
 				};
-				container.logger().info(id+" received dependency graphs from "+Iterables.transform(discoveredDependencies, justId));
-				SignalGraph[] graphs = discoveredDependencies.toArray(new SignalGraph[0]);
-				graph = new SignalGraph(id, graphs);
+				container.logger().info(id+" received dependency graphs from "+Iterables.transform(Arrays.asList(discoveredDependencies), justId));
+				graph = new SignalGraph(id, discoveredDependencies);
 				finishHandler.setResult(null);
 			}
 		}
@@ -279,9 +285,9 @@ public class Signal extends Verticle {
 			// we've received an update from each dependency so
 			// we should be clear to calculate the value.
 
-			Long[] args = new Long[discoveredDependencies.size()];
-			for (int i = 0; i < discoveredDependencies.size(); i++) {
-				SignalGraph currentGraph = discoveredDependencies.get(i);
+			Long[] args = new Long[discoveredDependencies.length];
+			for (int i = 0; i < discoveredDependencies.length; i++) {
+				SignalGraph currentGraph = discoveredDependencies[i];
 				args[i] = lastValues.get(currentGraph);
 			}
 

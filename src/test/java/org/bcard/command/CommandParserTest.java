@@ -59,6 +59,11 @@ public class CommandParserTest {
 		assertThat(parse("x1 "), instanceOf(PrintSignal.class));
 	}
 	
+	@Test(expected=ParseException.class)
+	public void testNumbersNotMatchedAsVariables() {
+		parse("1=1");
+	}
+	
 	@Test
 	public void testIncrementOperatorReturnsIncrementCommand() {
 		assertThat(parse("x1++"), instanceOf(Increment.class));
