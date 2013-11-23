@@ -13,6 +13,9 @@ import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.platform.Verticle;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+
 /**
  * A signal is the base construct in our functional reactive system. The signal
  * is an aggregator of values as well as producer of values. Signals use the
@@ -212,7 +215,15 @@ public class Signal extends Verticle {
 			handler.apply(vertx.eventBus());
 
 			if (discoveredDependencies.size() >= numberOfDependencies) {
-				container.logger().info(id+" received dependency graphs from "+discoveredDependencies);
+				// a formatting function to make our output a little nicer
+				Function<SignalGraph, String> justId = new Function<SignalGraph, String>() {
+					
+					@Override
+					public String apply(SignalGraph graph) {
+						return graph.getId();
+					}
+				};
+				container.logger().info(id+" received dependency graphs from "+Iterables.transform(discoveredDependencies, justId));
 				SignalGraph[] graphs = discoveredDependencies.toArray(new SignalGraph[0]);
 				graph = new SignalGraph(id, graphs);
 				finishHandler.setResult(null);
