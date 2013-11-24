@@ -289,7 +289,11 @@ public class SignalIntegrationTest extends TestVerticle {
 
 			@Override
 			public void handle(Message<JsonObject> event) {
-				VertxAssert.assertEquals(value, event.body().getLong("value"));
+				Long msgVal = event.body().getLong("value");
+				if (!msgVal.equals(value)) {
+					return;
+				}
+				VertxAssert.assertEquals(value, msgVal);
 				testComplete();
 			}
 		});

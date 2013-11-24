@@ -18,7 +18,7 @@ public class CommandProcessor extends Verticle {
 	@Override
 	public void start() {
 		container.logger().info("Starting Command Processor...");
-		vertx.eventBus().registerHandler("command", new Handler<Message<String>>() {
+		vertx.eventBus().registerLocalHandler("command", new Handler<Message<String>>() {
 
 			@Override
 			public void handle(Message<String> event) {

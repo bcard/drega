@@ -51,6 +51,6 @@ public class CommandProcessorTest {
 		
 		processor.start();
 		
-		verify(eventBus).registerHandler(eq("command"), any(Handler.class));
+		verify(eventBus).registerLocalHandler(eq("command"), any(Handler.class));
 	}
 }

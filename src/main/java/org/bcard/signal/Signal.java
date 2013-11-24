@@ -341,11 +341,6 @@ public class Signal extends Verticle {
 			}
 		}
 		
-		// we're ok with the collisions lining up, but it's still possible to be missing
-		// some initial values.  We check to make sure that we've got an update that contains
-		// each part of the collision path.
-		
-		
 		return returnValue;
 	}
 
