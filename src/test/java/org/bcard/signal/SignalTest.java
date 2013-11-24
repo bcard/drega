@@ -112,7 +112,7 @@ public class SignalTest {
 		stringCaptor.getValue().handle(mockMessage);
 		
 		
-		verify(eventBus).publish(eq("signals."+ID+".value"), eq(createUpdateMsg(1L, sc(ID, -1))));
+		verify(eventBus).publish(eq("signals."+ID+".value"), eq(createUpdateMsg(1L, sc(ID, 1))));
 	}
 	
 	@Test
@@ -284,37 +284,38 @@ public class SignalTest {
 	@Test
 	public void testAfterInitializeUpdateFrom6NeedBlock() {
 		setupComplicatedSignal();
-		sendEvent("7", "2");
-		sendEvent("6", "5", "3");
-		sendEvent("6", "1", "3");
-		sendEvent("6", "1", "2");
+		sendEvent(sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
+		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
 		
-		sendEvent("6", "1", "2");
+		sendEvent(sc("6", 2), sc("1", 2), sc("2", 2));
 		assertNumberOfSentValues(1);
-		sendEvent("6", "1", "3");
-		// have to assume 3 is also avoiding glitches
+		sendEvent(sc("6", 2), sc("1", 2), sc("3", 2));
+		// have to assume 3 is also avoiding glitches since
+		// we aren't tracking an update from 5
 		assertNumberOfSentValues(2);
 	}
 	
 	@Test
 	public void testAfterInitializeNeedToKeepOrderStraight() {
 		setupComplicatedSignal();
-		sendEvent("7", "2");
-		sendEvent("6", "5", "3");
-		sendEvent("6", "1", "3");
-		sendEvent("6", "1", "2");
+		sendEvent(sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
+		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
 		
-		sendEvent("6", "1", "3");
+		sendEvent(sc("6", 2), sc("1", 2), sc("3", 2));
 		assertNumberOfSentValues(1);
-		sendEvent("7", "2");
+		sendEvent(sc("7", 2), sc("2", 2));
 		// even though on different paths
 		// we know the value of 2 is bad so we can't
 		// apply the update from 7
 		assertNumberOfSentValues(1);
 		
-		sendEvent("6", "5", "3");
-		sendEvent("6", "1", "2");
-		// ok to take event now
+		sendEvent(sc("6", 2), sc("5", 2), sc("3", 2));
+		sendEvent(sc("6", 2), sc("1", 2), sc("2", 3));
+		// ok to take event now, 2 should be at counter 3
 		assertNumberOfSentValues(2);
 	}
 	

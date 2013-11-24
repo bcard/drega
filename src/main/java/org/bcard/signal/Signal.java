@@ -46,7 +46,7 @@ public class Signal extends Verticle {
 
 	private DependencyTracker tracker;
 
-	private final Map<SignalGraph, ChainValuePair> lastValues = new HashMap<SignalGraph, ChainValuePair>();
+	private final Map<SignalGraph, ChainValueMap> lastValues = new HashMap<SignalGraph, ChainValueMap>();
 
 	private CombineOperator operator;
 
@@ -200,10 +200,16 @@ public class Signal extends Verticle {
 			Long newValue = obj.getLong("value");
 			SignalChain chain = SignalChain.fromJson(obj.getObject("chain").toString());
 			
-			ChainValuePair pair = new ChainValuePair();
-			pair.chain = chain;
-			pair.value = newValue;
-			lastValues.put(symbol, pair);
+			ChainValueMap valueMap;
+			if (lastValues.containsKey(symbol)) {
+				valueMap = lastValues.get(symbol);
+			} else {
+				valueMap = new ChainValueMap();
+				lastValues.put(symbol, valueMap);
+			}
+			
+			valueMap.merge(chain);
+			valueMap.value = newValue;
 
 			if (tracker.getNumberOfDependencies() == 1) {
 				updateValue(newValue, chain);
@@ -242,7 +248,7 @@ public class Signal extends Verticle {
 	 * @return {@code true} if there are glitches, {@code false} if there are
 	 *         not
 	 */
-	private boolean checkForGlitches(SignalGraph graph, Map<SignalGraph, ChainValuePair> lastUpdates) {
+	private boolean checkForGlitches(SignalGraph graph, Map<SignalGraph, ChainValueMap> lastUpdates) {
 		List<SignalChain> allPaths = graph.allPaths();
 		Set<String> collisions = new HashSet<>();
 		for (SignalChain chain1 : allPaths) {
@@ -263,22 +269,37 @@ public class Signal extends Verticle {
 
 		boolean returnValue = false;
 		Map<String, Integer> counterMap = new HashMap<>();
-		for (Entry<SignalGraph, ChainValuePair> entry : lastUpdates.entrySet()) {
+		for (Entry<SignalGraph, ChainValueMap> entry : lastUpdates.entrySet()) {
 			for (String collision : collisions) {
-				SignalChain chain = entry.getValue().chain;
-				SignalGraph collisionSignal = new SignalGraph(collision);
-				if (chain.contains(collisionSignal)) {
-					int counter = chain.getEventCounterFor(collisionSignal);
-					if (!counterMap.containsKey(collision)) {
-						counterMap.put(collision, counter);
+				SignalGraph depGraph = entry.getKey();
+				if (depGraph.containsId(collision)) {
+					// make sure we have an update for this collision
+					// otherwise we can't trust the last update value
+
+					ChainValueMap map = entry.getValue();
+					Integer counter = map.get(collision);
+					if (counter == null) {
+						// missing an update, this is a glitch!
+						returnValue = true;
 					} else {
-						// counter must line up
-						int existing = counterMap.get(collision);
-						returnValue |= existing != counter;
+						// from here we need to verify that the counter
+						// is the same as any other occurrence of that collision
+						if (!counterMap.containsKey(collision)) {
+							counterMap.put(collision, counter);
+						} else {
+							// counter must line up
+							int existing = counterMap.get(collision);
+							returnValue |= existing != counter;
+						}
 					}
 				}
 			}
 		}
+		
+		// we're ok with the collisions lining up, but it's still possible to be missing
+		// some initial values.  We check to make sure that we've got an update that contains
+		// each part of the collision path.
+		
 		
 		return returnValue;
 	}
@@ -308,8 +329,30 @@ public class Signal extends Verticle {
 		}
 	}
 	
-	private class ChainValuePair {
-		private SignalChain chain;
+	private class ChainValueMap {
+		
+		private Map<String, Integer> counterMap = new HashMap<>();
+		
+		public void merge(SignalChain chain) {
+			for (String signal : chain.toList()) {
+				Integer counter = chain.getEventCounterFor(new SignalGraph(signal));
+				if (!counterMap.containsKey(signal)) {
+					counterMap.put(signal, counter);
+				} else {
+					// TODO this is accounting for out of order signal updates, should be a 
+					// unit test for this.
+					Integer existing = counterMap.get(signal);
+					if (counter.compareTo(existing) > 0) {
+						counterMap.put(signal, counter);
+					}
+				}
+			}
+		}
+		
+		public Integer get(String signal) {
+			return counterMap.get(signal);
+		}
+		
 		private Long value;
 	}
 

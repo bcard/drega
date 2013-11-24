@@ -209,7 +209,7 @@ public class SignalChain {
 	 * 
 	 * @return a {@link List} of IDs
 	 */
-	private List<String> toList() {
+	public List<String> toList() {
 		List<String> list = new ArrayList<>();
 		for (GraphAndCounter entry : entries) {
 			list.add(entry.getId());
