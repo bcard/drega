@@ -31,6 +31,7 @@ public class CommandProcessor extends Verticle {
 				}
 				catch (ParseException e) {
 					container.logger().error("Invalid Command:"+text);
+					event.reply();
 				}
 			}
 		});

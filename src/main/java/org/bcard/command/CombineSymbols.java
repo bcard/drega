@@ -18,9 +18,9 @@ import org.vertx.java.platform.Container;
  */
 public class CombineSymbols implements ICommand {
 	
-	private final String target;
-	private final String symbol1;
-	private final String symbol2;
+	/*default for testing*/ final String target;
+	/*default for testing*/ final String symbol1;
+	/*default for testing*/ final String symbol2;
 	/*default for testing*/ final CombineOperator operator;
 	
 	public CombineSymbols(String target, String symbol1, String symbol2,

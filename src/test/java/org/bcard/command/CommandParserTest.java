@@ -113,6 +113,22 @@ public class CommandParserTest {
 	}
 	
 	@Test
+	public void testSubtractingSignalsWithSpacesTrimsInput() {
+		CombineSymbols command = (CombineSymbols)parse("x = y - z");
+		assertEquals("x", command.target);
+		assertEquals("y", command.symbol1);
+		assertEquals("z", command.symbol2);
+	}
+	
+	@Test
+	public void testAddingSignalsWithSpacesTrimsInput() {
+		CombineSymbols command = (CombineSymbols)parse("x = y + z");
+		assertEquals("x", command.target);
+		assertEquals("y", command.symbol1);
+		assertEquals("z", command.symbol2);
+	}
+	
+	@Test
 	public void testBlock() {
 		assertThat(parse("block x"), instanceOf(BlockSignal.class));
 	}

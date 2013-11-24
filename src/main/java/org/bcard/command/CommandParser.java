@@ -64,10 +64,10 @@ public class CommandParser {
 			command = new BlockSignal(vals[1], false);
 		} else if (matches(COMBINE_ADDITION, input)) {
 			String[] vals = input.split("[=+]");
-			command = new CombineSymbols(vals[0], vals[1], vals[2], CombineOperator.ADD);
+			command = new CombineSymbols(vals[0].trim(), vals[1].trim(), vals[2].trim(), CombineOperator.ADD);
 		} else if (matches(COMBINE_SUBTRACTION, input)) {
 			String[] vals = input.split("[=-]");
-			command = new CombineSymbols(vals[0], vals[1], vals[2], CombineOperator.SUBTRACT);
+			command = new CombineSymbols(vals[0].trim(), vals[1].trim(), vals[2].trim(), CombineOperator.SUBTRACT);
 		}
 		
 		if (command == null) {
