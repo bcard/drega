@@ -79,26 +79,18 @@ public class SignalIntegrationTest extends TestVerticle {
 	
 	@Test
 	public void testMapSingle() {
-		createSignalX(new Handler<AsyncResult<String>>() {
+		createSignalX(thenMapYToX(new Handler<AsyncResult<String>>() {
 
 			@Override
 			public void handle(AsyncResult<String> event) {
-				
-				MapSignal create = new MapSignal("y", "x");
-				create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+				// check for increase on y
+				assertValueWillBe(1L, "y");
 
-					@Override
-					public void handle(AsyncResult<String> event) {
-						// check for increase on y
-						assertValueWillBe(1L, "y");
-
-						// send the increment command
-						Increment increment = new Increment("x");
-						increment.execute(container, vertx, new DummyHandler());
-					}
-				});
+				// send the increment command
+				Increment increment = new Increment("x");
+				increment.execute(container, vertx, new DummyHandler());
 			}
-		});
+		}));
 	}
 	
 	@Test
@@ -108,33 +100,17 @@ public class SignalIntegrationTest extends TestVerticle {
 			@Override
 			public void handle(AsyncResult<String> event) {
 				CreateSignal create = new CreateSignal("y", 1);
-				create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+				create.execute(container, vertx, thenZEqualsXPlusY(thenIncrementX(new Handler<AsyncResult<String>>() {
 
 					@Override
 					public void handle(AsyncResult<String> event) {
-						CombineSymbols create = new CombineSymbols("z", "x", "y", CombineOperator.ADD);
-						create.execute(container, vertx, new Handler<AsyncResult<String>>() {
+						// we should get an update after y is incremented
+						assertValueWillBe(3L, "z");
 
-							@Override
-							public void handle(AsyncResult<String> event) {
-								Increment increment = new Increment("x");
-								increment.execute(container, vertx, new Handler<AsyncResult<String>>() {
-
-									@Override
-									public void handle(AsyncResult<String> event) {
-										// we should get an update after y is incremented
-										assertValueWillBe(3L, "z");
-										
-										Increment increment = new Increment("y");
-										increment.execute(container, vertx, new DummyHandler());
-									}
-									
-								});
-								
-							}
-						});
+						Increment increment = new Increment("y");
+						increment.execute(container, vertx, new DummyHandler());
 					}
-				});
+				})));
 			}
 		});
 	}
@@ -164,7 +140,7 @@ public class SignalIntegrationTest extends TestVerticle {
 
 							@Override
 							public void handle(AsyncResult<String> event) {
-								createSignalY(new Handler<AsyncResult<String>>() {
+								createSignal("y", new Handler<AsyncResult<String>>() {
 
 									@Override
 									public void handle(AsyncResult<String> event) {
@@ -187,6 +163,44 @@ public class SignalIntegrationTest extends TestVerticle {
 			}
 			
 		});
+	}
+	
+	@Test
+	public void testSimpleGlitchAvoidance() {
+		/*
+		 * z should never be odd:
+		 * 
+		 * x = 0
+		 * y = x
+		 * z = x + y
+		 */
+		
+		createSignalX(thenMapYToX(thenZEqualsXPlusY(new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				vertx.eventBus().registerHandler("signals.z.value", new Handler<Message<JsonObject>>() {
+
+					@Override
+					public void handle(Message<JsonObject> event) {
+						Long value = event.body().getLong("value");
+						VertxAssert.assertFalse("Value equals 1", value.equals(Long.valueOf(1L)));
+						VertxAssert.assertFalse("Value equals 3", value.equals(Long.valueOf(3L)));
+						VertxAssert.assertFalse("Value equals 5", value.equals(Long.valueOf(5L)));
+						if (value.equals(Long.valueOf(6))) {
+							testComplete();
+						}
+					}
+				});
+
+				// we will incremented x three times, z should have
+				// never had the values 1, 3, or 5
+				Increment increment = new Increment("x");
+				increment.execute(container, vertx,(thenIncrementX(thenIncrementX(new DummyHandler()))));
+			}
+
+		})));
+
 	}
 	
 	// --------------- Helper Methods ---------------- //
@@ -222,9 +236,43 @@ public class SignalIntegrationTest extends TestVerticle {
 	 * @param handler
 	 *            the handler to be called after the signal has been created
 	 */
-	private void createSignalY(Handler<AsyncResult<String>> handler) {
-		CreateSignal create = new CreateSignal("y", 1);
+	private void createSignal(String id, Handler<AsyncResult<String>> handler) {
+		CreateSignal create = new CreateSignal(id, 1);
 		create.execute(container, vertx,  handler);
+	}
+	
+	private Handler<AsyncResult<String>> thenMapYToX(final Handler<AsyncResult<String>> handler) {
+		return new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				
+				MapSignal create = new MapSignal("y", "x");
+				create.execute(container, vertx, handler);
+			}
+		};
+	}
+	
+	private Handler<AsyncResult<String>> thenZEqualsXPlusY(final Handler<AsyncResult<String>> handler) {
+		return new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				CombineSymbols create = new CombineSymbols("z", "x", "y", CombineOperator.ADD);
+				create.execute(container, vertx, handler);
+			}
+		};
+	}
+	
+	private Handler<AsyncResult<String>> thenIncrementX(final Handler<AsyncResult<String>> handler) {
+		return new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				Increment increment = new Increment("x");
+				increment.execute(container, vertx, handler);
+			}
+		};
 	}
 
 	private static final class DummyHandler implements

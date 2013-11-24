@@ -1,11 +1,16 @@
 package org.bcard.signal;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Matchers.*;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.bcard.signal.Signal.DependencyUpdateHandler;
 import org.junit.Before;
@@ -14,6 +19,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
@@ -55,7 +62,11 @@ public class SignalTest {
 	@Captor
 	private ArgumentCaptor<Handler<Message<JsonObject>>> handlerCaptor;
 	
+	Map<String, Handler<Message<JsonObject>>> depUpdateHandlers = new HashMap<String, Handler<Message<JsonObject>>>();
+	
 	JsonObject config = new JsonObject();
+	
+	private int numEvents = 0;
 	
 	private static final String ID = "x";
 	
@@ -181,7 +192,228 @@ public class SignalTest {
 		verify(logger, atLeastOnce()).info(anyString());
 	}
 	
+	// --------------- Glitch avoidance tests ----------- //
+	/*
+	 * For all of these tests we will use one big complicated graph:
+	 * 
+	 *              6
+	 *             / \
+	 *      7     1   5
+	 *       \  /  \ /  
+	 *        2     3
+	 *         \   /
+	 *          \ /
+	 *           4
+	 *  
+	 *  Dependencies flow from top to bottom so 4 depends on everything,
+	 *  6 and 7 depend on nothing.  Our tests are written from the perspective
+	 *  of 4.
+	 *  
+	 */
+	
+	@Test
+	public void testSimpleGlitchAvoidance() {
+		// we'll start out with an easy test
+		/*
+		 * x1 = 0
+		 * x2 = x1
+		 * x3 = x1 + x1
+		 */
+		
+		setupSimpleSignal();
+		sendEvent("x1");
+		assertNumberOfSentValues(0);
+		sendEvent("x1", "x2");
+		assertNumberOfSentValues(1);
+		sendEvent("x1");
+		// glitch, must wait for x2 update
+		assertNumberOfSentValues(1);
+	}
+	
+	@Test
+	public void testPartialInitialize() {
+		setupComplicatedSignal();
+		sendEvent("7", "2");
+		sendEvent("6", "5", "3");
+		
+		// need to wait for events from 1
+		assertNumberOfSentValues(0);
+	}
+	
+	@Test
+	public void testPartialInitialize2() {
+		setupComplicatedSignal();
+		sendEvent("7", "2");
+		sendEvent("6", "5", "3");
+		sendEvent("6", "1", "3");
+		
+		// need to wait for events from 2
+		assertNumberOfSentValues(0);
+	}
+	
+	@Test
+	public void testInitialize() {
+		setupComplicatedSignal();
+		sendEvent("7", "2");
+		sendEvent("6", "5", "3");
+		sendEvent("6", "1", "3");
+		sendEvent("6", "1", "2");
+		
+		// our first update
+		assertNumberOfSentValues(1);
+	}
+	
+	
+	@Test
+	public void testAfterInitializeUpdateFrom7ok() {
+		setupComplicatedSignal();
+		sendEvent("7", "2");
+		sendEvent("6", "5", "3");
+		sendEvent("6", "1", "3");
+		sendEvent("6", "1", "2");
+		
+		sendEvent("7", "2");
+		sendEvent("7", "2");
+		
+		// updates from 7 should go through fine
+		assertNumberOfSentValues(3);
+	}
+	
+	
+	@Test
+	public void testAfterInitializeUpdateFrom6NeedBlock() {
+		setupComplicatedSignal();
+		sendEvent("7", "2");
+		sendEvent("6", "5", "3");
+		sendEvent("6", "1", "3");
+		sendEvent("6", "1", "2");
+		
+		sendEvent("6", "1", "2");
+		assertNumberOfSentValues(1);
+		sendEvent("6", "1", "3");
+		assertNumberOfSentValues(1);
+		sendEvent("6", "5", "3");
+		
+		assertNumberOfSentValues(2);
+	}
+	
+	@Test
+	public void testAfterInitializeNeedToKeepOrderStraight() {
+		setupComplicatedSignal();
+		sendEvent("7", "2");
+		sendEvent("6", "5", "3");
+		sendEvent("6", "1", "3");
+		sendEvent("6", "1", "2");
+		
+		sendEvent("6", "1", "3");
+		assertNumberOfSentValues(1);
+		sendEvent("7", "2");
+		// even though on different paths
+		// we know the value of 2 is bad so we can't
+		// apply the update from 7
+		assertNumberOfSentValues(1);
+		
+		sendEvent("6", "5", "3");
+		sendEvent("6", "1", "2");
+		// ok to take event now
+		assertNumberOfSentValues(2);
+	}
+	
+	
+	
 	// ------------------ Helper Methods ---------------- //
+	
+	private void setupSimpleSignal() {
+		config.putString("id", "x3");
+		config.putString("operator", "ADD");
+		SignalGraph x1Graph = new SignalGraph("x1");
+		SignalGraph x2Graph = new SignalGraph("x2", x1Graph);
+		
+		DependencyTrackerTest.putDependencies(config, "x2", "x1");
+		
+		captureHandlersAndEvents();
+		
+		startSignal();
+		
+		setGraphForSignal("x1", x1Graph, 0);
+		setGraphForSignal("x2", x2Graph, 1);
+	}
+	
+	private void setupComplicatedSignal() {
+		config.putString("id", "4");
+		config.putString("operator", "ADD");
+		SignalGraph graph7 = new SignalGraph("7");
+		SignalGraph graph6 = new SignalGraph("6");
+		SignalGraph graph1 = new SignalGraph("1", graph6);
+		SignalGraph graph5 = new SignalGraph("5", graph6);
+		SignalGraph graph2 = new SignalGraph("2", graph7, graph1);
+		SignalGraph graph3 = new SignalGraph("3", graph1, graph5);
+		
+		DependencyTrackerTest.putDependencies(config, "2", "3");
+		
+		captureHandlersAndEvents();
+		
+		startSignal();
+		
+		setGraphForSignal("1", graph1, 0);
+		setGraphForSignal("2", graph2, 1);
+		setGraphForSignal("3", graph3, 2);
+		setGraphForSignal("5", graph5, 3);
+		setGraphForSignal("6", graph6, 4);
+		setGraphForSignal("1", graph7, 5);
+	}
+	
+	private void captureHandlersAndEvents() {
+		when(eventBus.registerHandler(contains(".value"), (Handler<? extends Message>) any())).then(new Answer<Void>() {
+
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				String address = (String)invocation.getArguments()[0];
+				Handler<Message<JsonObject>> handler = (Handler<Message<JsonObject>>)invocation.getArguments()[1];
+				depUpdateHandlers.put(address, handler);
+				return null;
+			}
+			
+		});
+		
+		when(eventBus.publish(contains(".value"), any(JsonObject.class))).then(new Answer<Void>() {
+
+			@Override
+			public Void answer(InvocationOnMock invocation) throws Throwable {
+				numEvents++;
+				return null;
+			}
+			
+		});
+	}
+	
+	private void setGraphForSignal(String id, SignalGraph graph, int invocationCount) {
+		verify(eventBus).send(eq("signals."+id+".sendGraph"), eq(""), handlerCaptor.capture());
+		List<Handler<Message<JsonObject>>> values = handlerCaptor.getAllValues();
+		Handler<Message<JsonObject>> theOne = values.get(invocationCount);
+		JsonObject zObj = new JsonObject(graph.toJson());
+		JsonObjectMessage zMsg = new JsonObjectMessage(true, "signals."+id+".sendGraph", zObj);
+		theOne.handle(zMsg);
+	}
+	
+	private void assertNumberOfSentValues(int number) {
+		assertEquals(number, numEvents);
+		
+	}
+	
+	/**
+	 * Sends an update event to the given signal. The path is the path from
+	 * start to finish that the event has traveled through.
+	 * 
+	 * @param path the path to follow.
+	 */
+	private void sendEvent(String... path) {
+		JsonObject obj = createUpdateMsg(1, path);
+		String last = path[path.length-1];
+		Handler<Message<JsonObject>> handler = depUpdateHandlers.get("signals."+last+".value");
+		JsonObjectMessage msg = new JsonObjectMessage(true, "", obj);
+		handler.handle(msg);
+	}
 	
 	private Signal startSignal() {
 		Signal signal = new Signal();
@@ -196,8 +428,8 @@ public class SignalTest {
 	 * 
 	 * @param value
 	 * @param ids
-	 *            dependencies from bottom to top. e.g. if a sends a message to
-	 *            b and the value of b is now 1 then you should invoke this
+	 *            dependencies from bottom to top. e.g. if 'a' sends a message to
+	 *            'b' and the value of 'b' is now 1 then you should invoke this
 	 *            methods as: {@code createUpdateMsg(1, "a", "b")}
 	 * @return
 	 */

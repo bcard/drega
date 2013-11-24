@@ -190,7 +190,6 @@ public class Signal extends Verticle {
 			Long newValue = obj.getLong("value");
 			SignalChain chain = SignalChain.fromJson(obj.getObject("chain").toString());
 			
-			// TODO should not set last value until we know we can trust this update
 			lastValues.put(symbol, newValue);
 
 			if (tracker.getNumberOfDependencies() == 1) {
@@ -200,8 +199,9 @@ public class Signal extends Verticle {
 
 			if (lastValues.size() == tracker.getNumberOfDependencies()) {
 				// we've received an update from each dependency so
-				// we should be clear to calculate the value.
-
+				// we should be clear to calculate the value if there
+				// are no glitches.
+				
 				List<SignalGraph> graphs = tracker.getDependencies();
 				Long[] args = new Long[tracker.getNumberOfDependencies()];
 				for (int i = 0; i < tracker.getNumberOfDependencies(); i++) {
