@@ -62,6 +62,8 @@ public class Signal extends Verticle {
 	 * least matching value) for a signal.
 	 */
 	private int eventCounter = 0;
+	
+	private ResendHandler resendHandler;
 
 	@Override
 	public void start(final Future<Void> startedResult) {
@@ -91,7 +93,11 @@ public class Signal extends Verticle {
 							"signals." + dep.getId() + ".value",
 							dep);
 					handler.apply(vertx.eventBus());
+					// request updates from our dependencies so we can have a good initial
+					// value
+					vertx.eventBus().send("signals." + dep.getId() + ".get", "");
 				}
+				
 				startedResult.setResult(result);
 				return this;
 			}
@@ -103,12 +109,15 @@ public class Signal extends Verticle {
 		IncrementHandler incrementer = new IncrementHandler("signals." + id + ".increment");
 		GraphHandler grapher = new GraphHandler("signals." + id + ".sendGraph");
 		BlockHandler blocker = new BlockHandler("signals." + id + ".block");
+		resendHandler = new ResendHandler("signals."+id+".get");
 
 		incrementer.apply(vertx.eventBus());
 		printer.apply(vertx.eventBus());
 		grapher.apply(vertx.eventBus());
 		printGraph.apply(vertx.eventBus());
 		blocker.apply(vertx.eventBus());
+		resendHandler.apply(vertx.eventBus());
+		resendHandler.setLastValue(value, null);
 	}
 
 	private class PrintHandler extends HandlerApplicator<String> {
@@ -179,6 +188,38 @@ public class Signal extends Verticle {
 		public void handle(Message<Boolean> event) {
 			blocked = event.body();
 		}
+	}
+	
+	private class ResendHandler extends HandlerApplicator<String> {
+
+		private Long result;
+		private SignalChain chain;
+		
+		public ResendHandler(String address) {
+			super(address);
+		}
+
+		@Override
+		public void handle(Message<String> event) {
+			if (result != null) {
+				updateValue(result, chain);
+			}
+		}
+		
+		/**
+		 * Sets the last value that was sent by this signal. If other signals
+		 * ask for a resend then this value and signal chain will be submitted.
+		 * 
+		 * @param result
+		 *            the last result that was sent
+		 * @param chain
+		 *            the last chain that was sent
+		 */
+		public void setLastValue(Long result, SignalChain chain) {
+			this.result = result;
+			this.chain = chain;
+		}
+		
 	}
 	
 	/**
@@ -330,6 +371,7 @@ public class Signal extends Verticle {
 			JsonObject chainJson = new JsonObject(chain.toJson());
 			msg.putObject("chain", chainJson);
 			vertx.eventBus().publish("signals." + id + ".value", msg);
+			resendHandler.setLastValue(value, chain);
 		}
 	}
 	
