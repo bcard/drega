@@ -63,5 +63,19 @@ public class SignalChainTest {
 		SignalChain recreated = SignalChain.fromJson(json);
 		assertEquals(chainB, recreated);
 	}
+	
+	@Test
+	public void testEventCounter() {
+		SignalChain chainA = new SignalChain(a, 0);
+		assertEquals(0, chainA.getEventCounterFor(a));
+	}
+	
+	@Test
+	public void testChainWithEventCounter() {
+		SignalChain chainA = new SignalChain(a, 0);
+		chainA.chain(b, 2);
+		
+		assertEquals(2, chainA.getEventCounterFor(b));
+	}
 
 }

@@ -1,8 +1,11 @@
 package org.bcard.signal;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.vertx.java.core.Future;
 import org.vertx.java.core.eventbus.Message;
@@ -43,7 +46,7 @@ public class Signal extends Verticle {
 
 	private DependencyTracker tracker;
 
-	private final Map<SignalGraph, Long> lastValues = new HashMap<SignalGraph, Long>();
+	private final Map<SignalGraph, ChainValuePair> lastValues = new HashMap<SignalGraph, ChainValuePair>();
 
 	private CombineOperator operator;
 
@@ -52,6 +55,13 @@ public class Signal extends Verticle {
 	 * {@code true} if it is blocked {@code false} if it is not blocked.
 	 */
 	private boolean blocked = false;
+	
+	/**
+	 * An event counter that's sent out with event update.  This allows
+	 * dependency signals to know when they have the latest value (or at
+	 * least matching value) for a signal.
+	 */
+	private int eventCounter = 0;
 
 	@Override
 	public void start(final Future<Void> startedResult) {
@@ -190,7 +200,10 @@ public class Signal extends Verticle {
 			Long newValue = obj.getLong("value");
 			SignalChain chain = SignalChain.fromJson(obj.getObject("chain").toString());
 			
-			lastValues.put(symbol, newValue);
+			ChainValuePair pair = new ChainValuePair();
+			pair.chain = chain;
+			pair.value = newValue;
+			lastValues.put(symbol, pair);
 
 			if (tracker.getNumberOfDependencies() == 1) {
 				updateValue(newValue, chain);
@@ -202,18 +215,67 @@ public class Signal extends Verticle {
 				// we should be clear to calculate the value if there
 				// are no glitches.
 				
-				List<SignalGraph> graphs = tracker.getDependencies();
-				Long[] args = new Long[tracker.getNumberOfDependencies()];
-				for (int i = 0; i < tracker.getNumberOfDependencies(); i++) {
-					SignalGraph currentGraph = graphs.get(i);
-					args[i] = lastValues.get(currentGraph);
-				}
+				if (!checkForGlitches(tracker.getGraph(), lastValues)) {
+					List<SignalGraph> graphs = tracker.getDependencies();
+					Long[] args = new Long[tracker.getNumberOfDependencies()];
+					for (int i = 0; i < tracker.getNumberOfDependencies(); i++) {
+						SignalGraph currentGraph = graphs.get(i);
+						args[i] = lastValues.get(currentGraph).value;
+					}
 
-				// just two values for now
-				Long result = operator.call(args[0], args[1]);
-				updateValue(result, chain);
+					// just two values for now
+					Long result = operator.call(args[0], args[1]);
+					updateValue(result, chain);
+				}
 			}
 		}
+	}
+	
+	/**
+	 * Checks for glitches. Returns {@code true} if a glitch is detected,
+	 * {@code false} if there are no glitches and the values are ok to update
+	 * 
+	 * @param graph
+	 *            the dependency graph for this signal
+	 * @param lastUpdates
+	 *            the recorded values for each dependent signal
+	 * @return {@code true} if there are glitches, {@code false} if there are
+	 *         not
+	 */
+	private boolean checkForGlitches(SignalGraph graph, Map<SignalGraph, ChainValuePair> lastUpdates) {
+		List<SignalChain> allPaths = graph.allPaths();
+		Set<String> collisions = new HashSet<>();
+		for (SignalChain chain1 : allPaths) {
+			for (SignalChain chain2 : allPaths) {
+				if (!chain1.equals(chain2) && !chain1.getConflicts(chain2).isEmpty()) {
+					collisions.addAll(chain1.getConflicts(chain2));
+				}
+			}
+		}
+		
+		// Need to track counters from each signal.  Once we have that then we should
+		// be able to take our conflicts, search through all of our chains that we've 
+		// received and make sure that the numbers for the conflicts line up for
+		// all events.  If some number doesn't match, then we have an issue and need
+		// to hold off until other updates are received.
+
+		boolean returnValue = false;
+		Map<String, Integer> counterMap = new HashMap<>();
+		for (Entry<SignalGraph, ChainValuePair> entry : lastUpdates.entrySet()) {
+			for (String collision : collisions) {
+				SignalChain chain = entry.getValue().chain;
+				int counter = chain.getEventCounterFor(new SignalGraph(collision));
+				if (!counterMap.containsKey(collision)) {
+					counterMap.put(collision, counter);
+				} else {
+					// counter must line up
+					int existing = counterMap.get(collision);
+					returnValue |= existing != counter;
+				}
+			}
+		}
+		
+		return returnValue;
 	}
 
 	/**
@@ -227,10 +289,11 @@ public class Signal extends Verticle {
 		value = newValue;
 		new PrintHandler(null).handle(null);
 		if (!blocked && tracker.getGraph() != null) {
+			eventCounter++;
 			if (chain == null) {
-				chain = new SignalChain(tracker.getGraph());
+				chain = new SignalChain(tracker.getGraph(), eventCounter);
 			} else {
-				chain.chain(tracker.getGraph());
+				chain.chain(tracker.getGraph(), eventCounter);
 			}
 			JsonObject msg = new JsonObject();
 			msg.putNumber("value", value);
@@ -238,6 +301,11 @@ public class Signal extends Verticle {
 			msg.putObject("chain", chainJson);
 			vertx.eventBus().publish("signals." + id + ".value", msg);
 		}
+	}
+	
+	private class ChainValuePair {
+		private SignalChain chain;
+		private Long value;
 	}
 
 }

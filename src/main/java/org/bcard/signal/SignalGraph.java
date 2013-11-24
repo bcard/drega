@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Dependency graph for observables. This class allows us to find common
- * ancestors which can be used to avoid glitches.
+ * ancestors which can be used to avoid glitches.  This class is immutable.
  * 
  * @author bcard
  * 
@@ -49,6 +49,39 @@ public class SignalGraph {
 		this.id = id;
 		for (SignalGraph graph : upstreamDependencies) {
 			this.upstreamDependencies.add(graph);
+		}
+	}
+	
+	/**
+	 * Returns every dependent path rooted at this graphs immediate dependency
+	 * down to their lowest dependency.
+	 * 
+	 * @return
+	 */
+	public List<SignalChain> allPaths() {
+		List<SignalChain> returnValue = new ArrayList<>();
+		for (SignalGraph graph : upstreamDependencies) {
+			SignalChain chain = new SignalChain(graph);
+			buildChainPathsRecursive(chain, graph, returnValue);
+		}
+		
+		return returnValue;
+	}
+	
+	private void buildChainPathsRecursive(SignalChain chain, SignalGraph current, List<SignalChain> bucket) {
+		if (current.getDependentSignals().isEmpty()) {
+			bucket.add(chain);
+		} else if (current.getDependentSignals().size() == 1){
+			SignalGraph dep = current.getDependentSignals().get(0);
+			chain.chain(dep);
+			buildChainPathsRecursive(chain, dep, bucket);
+		} else {
+			for (SignalGraph dep : current.getDependentSignals()) {
+				// copy chain
+				SignalChain newChain = new SignalChain(chain);
+				newChain.chain(dep);
+				buildChainPathsRecursive(newChain, dep, bucket);
+			}
 		}
 	}
 
@@ -208,7 +241,7 @@ public class SignalGraph {
 
 		/**
 		 * Recursively builds the graph from the bottom up. This does a depth
-		 * first search on the {@link JsonNode}, builds teh lowest graph and
+		 * first search on the {@link JsonNode}, builds the lowest graph and
 		 * then uses that as a dependency for the graphs that are higher up if
 		 * necessary.
 		 * 

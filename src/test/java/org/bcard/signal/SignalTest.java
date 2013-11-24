@@ -245,7 +245,6 @@ public class SignalTest {
 		setupComplicatedSignal();
 		sendEvent("7", "2");
 		sendEvent("6", "5", "3");
-		sendEvent("6", "1", "3");
 		
 		// need to wait for events from 2
 		assertNumberOfSentValues(0);
@@ -291,9 +290,7 @@ public class SignalTest {
 		sendEvent("6", "1", "2");
 		assertNumberOfSentValues(1);
 		sendEvent("6", "1", "3");
-		assertNumberOfSentValues(1);
-		sendEvent("6", "5", "3");
-		
+		// have to assume 3 is also avoiding glitches
 		assertNumberOfSentValues(2);
 	}
 	

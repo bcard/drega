@@ -1,8 +1,12 @@
 package org.bcard.signal;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import org.bcard.signal.SignalGraph;
+import static org.fest.assertions.api.Assertions.*;
+
+import java.util.List;
+
 import org.json.JSONException;
 import org.junit.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -180,7 +184,73 @@ public class SignalGraphTest {
 		
 		assertEquals(g4, copy);
 	}
+	
+	@Test
+	public void testAllPathsWithSingleDepJustReturnsThatDep() {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1), g0);
+		
+		List<SignalChain> allPaths = g1.allPaths();
+		assertThat(allPaths).hasSize(1);
+	}
+	
+	@Test
+	public void testAllPathsStick() {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1), g0);
+		SignalGraph g2 = new SignalGraph(id(2), g1);
+		SignalGraph g3 = new SignalGraph(id(3), g2);
+		
+		List<SignalChain> allPaths = g3.allPaths();
+		assertThat(allPaths).hasSize(1);
+	}
+	
+	
+	@Test
+	public void testAllPathsBinaryTree() {
+		/*
+		 *       0
+		 *      / \
+		 *     /   \
+		 *    1     4
+		 *   / \   / \
+		 *  2   3 5   6
+		 */
 
+		SignalGraph g2 = new SignalGraph(id(2));
+		SignalGraph g3 = new SignalGraph(id(3));
+		SignalGraph g5 = new SignalGraph(id(5));
+		SignalGraph g6 = new SignalGraph(id(6));
+		
+		SignalGraph g1 = new SignalGraph(id(1), g2, g3);
+		SignalGraph g4 = new SignalGraph(id(4), g5, g6);
+		
+		SignalGraph g0 = new SignalGraph(id(0), g1, g4);
+		
+		List<SignalChain> allPaths = g0.allPaths();
+		assertThat(allPaths).hasSize(4);
+	}
+	
+	@Test
+	public void testAllPathsRoots() {
+		/*
+		 *       0
+		 *       |
+		 *       1
+		 *      / \
+		 *     2   3
+		 */
+
+		SignalGraph g2 = new SignalGraph(id(2));
+		SignalGraph g3 = new SignalGraph(id(3));
+		
+		SignalGraph g1 = new SignalGraph(id(1), g2, g3);
+		
+		SignalGraph g0 = new SignalGraph(id(0), g1);
+		
+		List<SignalChain> allPaths = g0.allPaths();
+		assertThat(allPaths).hasSize(2);
+	}
 	
 	private static String id(int value) {
 		return Integer.toString(value);
