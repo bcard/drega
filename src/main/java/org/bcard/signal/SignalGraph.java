@@ -54,35 +54,37 @@ public class SignalGraph {
 	
 	/**
 	 * Returns every dependent path rooted at this graphs immediate dependency
-	 * down to their lowest dependency.
+	 * down to their lowest dependency. Each chain will list signals in the
+	 * <i>order of event propagation</i>, so they will start at the leaf nodes
+	 * and end with the direct dependencies.
 	 * 
 	 * @return
 	 */
 	public List<SignalChain> allPaths() {
 		List<SignalChain> returnValue = new ArrayList<>();
 		for (SignalGraph graph : upstreamDependencies) {
-			SignalChain chain = new SignalChain(graph);
-			buildChainPathsRecursive(chain, graph, returnValue);
+			returnValue.addAll(buildChainPathsRecursive(graph));
 		}
 		
 		return returnValue;
 	}
 	
-	private void buildChainPathsRecursive(SignalChain chain, SignalGraph current, List<SignalChain> bucket) {
+	private List<SignalChain> buildChainPathsRecursive(SignalGraph current) {
+		List<SignalChain> returnList = new ArrayList<>();
 		if (current.getDependentSignals().isEmpty()) {
-			bucket.add(chain);
-		} else if (current.getDependentSignals().size() == 1){
-			SignalGraph dep = current.getDependentSignals().get(0);
-			chain.chain(dep);
-			buildChainPathsRecursive(chain, dep, bucket);
+			SignalChain chain = new SignalChain(current);
+			returnList.add(chain);
+			return returnList;
 		} else {
 			for (SignalGraph dep : current.getDependentSignals()) {
-				// copy chain
-				SignalChain newChain = new SignalChain(chain);
-				newChain.chain(dep);
-				buildChainPathsRecursive(newChain, dep, bucket);
+				List<SignalChain> results = buildChainPathsRecursive(dep);
+				for (SignalChain result : results) {
+					result.chain(current);
+					returnList.add(result);
+				}
 			}
 		}
+		return returnList; 
 	}
 
 	public String getId() {

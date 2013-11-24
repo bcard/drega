@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -35,7 +36,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 public class SignalChain {
 
 	@JsonProperty
-	private final LinkedList<GraphAndCounter> entries = new LinkedList<>();
+	private final List<GraphAndCounter> entries = new LinkedList<>();
 
 	public SignalChain(SignalGraph head) {
 		entries.add(new GraphAndCounter(head.getId(), -1));
@@ -74,7 +75,39 @@ public class SignalChain {
 		List<String> otherValues = other.toList();
 
 		theseValues.retainAll(otherValues);
-		return theseValues;
+		List<String> returnValue = new ArrayList<>();
+		for (String candidate : theseValues) {
+			String nextForThis = nextSignal(candidate);
+			String nextForOther = other.nextSignal(candidate);
+			
+			if (nextForThis == null && nextForOther != null || nextForThis != null && !nextForThis.equals(nextForOther)) {
+				returnValue.add(candidate);
+			}
+		}
+		return returnValue;
+	}
+	
+	/**
+	 * Searches through the entries and finds the signal that follows the given
+	 * signal. This is the signal that the given signal is sending it's value
+	 * to, which appears after it in the list of entries.
+	 * 
+	 * @param signal
+	 *            the signal to seach for
+	 * @return the signal the given signal will send it's events to, or
+	 *         {@code null} if the given signal cannot be found or is found to
+	 *         have sent any events in this chain
+	 */
+	private String nextSignal(String signal) {
+		ListIterator<GraphAndCounter> iterator = entries.listIterator();
+		while(iterator.hasNext()) {
+			GraphAndCounter current = iterator.next();
+			if (current.getId().equals(signal) && iterator.hasNext()) {
+				return iterator.next().getId();
+			}
+		}
+		
+		return null;
 	}
 	
 	/**
@@ -113,7 +146,23 @@ public class SignalChain {
 	 *            the event counter for the given {@code link}
 	 */
 	public void chain(SignalGraph link, int eventCounter) {
-		entries.addFirst(new GraphAndCounter(link.getId(), eventCounter));
+		entries.add(new GraphAndCounter(link.getId(), eventCounter));
+	}
+	
+	/**
+	 * 
+	 * @param signal
+	 * @return
+	 */
+	public boolean contains(SignalGraph signal) {
+		boolean returnValue = false;
+		for (GraphAndCounter entry : entries) {
+			if (entry.getId().equals(signal.getId())) {
+				returnValue = true;
+				break;
+			}
+		}
+		return returnValue;
 	}
 
 	/**

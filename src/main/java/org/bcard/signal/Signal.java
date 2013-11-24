@@ -248,6 +248,8 @@ public class Signal extends Verticle {
 		for (SignalChain chain1 : allPaths) {
 			for (SignalChain chain2 : allPaths) {
 				if (!chain1.equals(chain2) && !chain1.getConflicts(chain2).isEmpty()) {
+					// candidate for a collision, we still need to check to see if the _next_
+					// signal in the chain is different
 					collisions.addAll(chain1.getConflicts(chain2));
 				}
 			}
@@ -264,13 +266,16 @@ public class Signal extends Verticle {
 		for (Entry<SignalGraph, ChainValuePair> entry : lastUpdates.entrySet()) {
 			for (String collision : collisions) {
 				SignalChain chain = entry.getValue().chain;
-				int counter = chain.getEventCounterFor(new SignalGraph(collision));
-				if (!counterMap.containsKey(collision)) {
-					counterMap.put(collision, counter);
-				} else {
-					// counter must line up
-					int existing = counterMap.get(collision);
-					returnValue |= existing != counter;
+				SignalGraph collisionSignal = new SignalGraph(collision);
+				if (chain.contains(collisionSignal)) {
+					int counter = chain.getEventCounterFor(collisionSignal);
+					if (!counterMap.containsKey(collision)) {
+						counterMap.put(collision, counter);
+					} else {
+						// counter must line up
+						int existing = counterMap.get(collision);
+						returnValue |= existing != counter;
+					}
 				}
 			}
 		}

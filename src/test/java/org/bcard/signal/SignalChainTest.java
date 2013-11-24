@@ -17,13 +17,14 @@ public class SignalChainTest {
 	private SignalGraph a;
 	private SignalGraph b;
 	private SignalGraph c;
+	private SignalGraph d;
 	
 	@Before
 	public void setup() {
 		b = new SignalGraph("b");
 		c = new SignalGraph("c");
 		a = new SignalGraph("a", b, c);
-		
+		d = new SignalGraph("d");
 	}
 	
 	@Test
@@ -35,19 +36,19 @@ public class SignalChainTest {
 	}
 	
 	@Test
-	public void testChainDependsOnItself() {
+	public void testChainDoesNotDependOnItself() {
 		SignalChain chainB = new SignalChain(b);
 		
-		assertThat(chainB.getConflicts(chainB)).contains("b");
+		assertThat(chainB.getConflicts(chainB)).isEmpty();
 	}
 	
 	@Test
 	public void testSingleConflict() {
-		SignalChain chainB = new SignalChain(b);
-		SignalChain chainC = new SignalChain(c);
+		SignalChain chainB = new SignalChain(a);
+		SignalChain chainC = new SignalChain(a);
 		
-		chainB.chain(a);
-		chainC.chain(a);
+		chainB.chain(b);
+		chainC.chain(c);
 		
 		assertThat(chainB.getConflicts(chainC)).contains("a");
 	}
@@ -76,6 +77,89 @@ public class SignalChainTest {
 		chainA.chain(b, 2);
 		
 		assertEquals(2, chainA.getEventCounterFor(b));
+	}
+	
+	@Test
+	public void testConflictsWithOneNullAreConflicts() {
+		SignalChain chainA = new SignalChain(c);
+		chainA.chain(a);
+		chainA.chain(b);
+
+		
+		SignalChain chainA2 = new SignalChain(c);
+		chainA2.chain(a);
+		
+		/*
+		 * We have:
+		 * c -> a -> b
+		 * c -> a
+		 * 
+		 * one branches to a null and the other doesn't
+		 */
+		
+		assertThat(chainA.getConflicts(chainA2)).contains("a");
+	}
+	
+	@Test
+	public void testConflictsWithNoBranchingAreNotConflicts() {
+		SignalChain chainA = new SignalChain(c);
+		chainA.chain(a);
+
+		
+		SignalChain chainA2 = new SignalChain(c);
+		chainA2.chain(a);
+		
+		/*
+		 * We have:
+		 * c -> a
+		 * c -> a
+		 * 
+		 * because a doesn't 'branch' to a different value it's not a conflict
+		 */
+		
+		assertThat(chainA.getConflicts(chainA2)).isEmpty();
+	}
+	
+	@Test
+	public void testConflictsWithBranchingAreConflicts() {
+		SignalChain chainA = new SignalChain(c);
+		chainA.chain(b);
+		chainA.chain(a);
+		
+		SignalChain chainA2 = new SignalChain(c);
+		chainA2.chain(d);
+		chainA2.chain(a);
+		
+		/*
+		 * We have:
+		 * c -> b -> a
+		 * c -> d -> a
+		 * 
+		 * because c does 'branch' to a different value it *is*
+		 * a conflict, but a is still not a conflict
+		 */
+		
+		assertThat(chainA.getConflicts(chainA2)).contains("c");
+	}
+	
+	@Test
+	public void testContainsWithSingleValue() {
+		SignalChain chainC = new SignalChain(c);
+		
+		assertTrue(chainC.contains(c));
+		assertFalse(chainC.contains(a));
+	}
+	
+	@Test
+	public void testContainsWithMultipleValues() {
+		SignalChain chainC = new SignalChain(c);
+		chainC.chain(a);
+		chainC.chain(b);
+		
+		assertTrue(chainC.contains(c));
+		assertTrue(chainC.contains(a));
+		assertTrue(chainC.contains(b));
+		assertFalse(chainC.contains(d));
 	}
 
 }

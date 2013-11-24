@@ -112,7 +112,7 @@ public class SignalTest {
 		stringCaptor.getValue().handle(mockMessage);
 		
 		
-		verify(eventBus).publish(eq("signals."+ID+".value"), eq(createUpdateMsg(1L, ID)));
+		verify(eventBus).publish(eq("signals."+ID+".value"), eq(createUpdateMsg(1L, sc(ID, -1))));
 	}
 	
 	@Test
@@ -221,11 +221,11 @@ public class SignalTest {
 		 */
 		
 		setupSimpleSignal();
-		sendEvent("x1");
+		sendEvent(sc("x1", 1));
 		assertNumberOfSentValues(0);
-		sendEvent("x1", "x2");
+		sendEvent(sc("x1", 1), sc("x2", 1));
 		assertNumberOfSentValues(1);
-		sendEvent("x1");
+		sendEvent(sc("x1", 2));
 		// glitch, must wait for x2 update
 		assertNumberOfSentValues(1);
 	}
@@ -233,8 +233,8 @@ public class SignalTest {
 	@Test
 	public void testPartialInitialize() {
 		setupComplicatedSignal();
-		sendEvent("7", "2");
-		sendEvent("6", "5", "3");
+		sendEvent(sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
 		
 		// need to wait for events from 1
 		assertNumberOfSentValues(0);
@@ -243,8 +243,8 @@ public class SignalTest {
 	@Test
 	public void testPartialInitialize2() {
 		setupComplicatedSignal();
-		sendEvent("7", "2");
-		sendEvent("6", "5", "3");
+		sendEvent(sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
 		
 		// need to wait for events from 2
 		assertNumberOfSentValues(0);
@@ -253,10 +253,12 @@ public class SignalTest {
 	@Test
 	public void testInitialize() {
 		setupComplicatedSignal();
-		sendEvent("7", "2");
-		sendEvent("6", "5", "3");
-		sendEvent("6", "1", "3");
-		sendEvent("6", "1", "2");
+		sendEvent(sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
+		assertNumberOfSentValues(0);
+		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
+		assertNumberOfSentValues(0);
+		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
 		
 		// our first update
 		assertNumberOfSentValues(1);
@@ -266,13 +268,13 @@ public class SignalTest {
 	@Test
 	public void testAfterInitializeUpdateFrom7ok() {
 		setupComplicatedSignal();
-		sendEvent("7", "2");
-		sendEvent("6", "5", "3");
-		sendEvent("6", "1", "3");
-		sendEvent("6", "1", "2");
+		sendEvent(sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
+		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
 		
-		sendEvent("7", "2");
-		sendEvent("7", "2");
+		sendEvent(sc("7", 2), sc("2", 2));
+		sendEvent(sc("7", 3), sc("2", 3));
 		
 		// updates from 7 should go through fine
 		assertNumberOfSentValues(3);
@@ -352,12 +354,8 @@ public class SignalTest {
 		
 		startSignal();
 		
-		setGraphForSignal("1", graph1, 0);
-		setGraphForSignal("2", graph2, 1);
-		setGraphForSignal("3", graph3, 2);
-		setGraphForSignal("5", graph5, 3);
-		setGraphForSignal("6", graph6, 4);
-		setGraphForSignal("1", graph7, 5);
+		setGraphForSignal("2", graph2, 0);
+		setGraphForSignal("3", graph3, 1);
 	}
 	
 	private void captureHandlersAndEvents() {
@@ -395,7 +393,18 @@ public class SignalTest {
 	
 	private void assertNumberOfSentValues(int number) {
 		assertEquals(number, numEvents);
-		
+	}
+	
+	private static SignalCounterPair sc(String signal, int counter) {
+		SignalCounterPair pair = new SignalCounterPair();
+		pair.signal = signal;
+		pair.counter = counter;
+		return pair;
+	}
+	
+	private static class SignalCounterPair {
+		private String signal;
+		private int counter;
 	}
 	
 	/**
@@ -404,9 +413,9 @@ public class SignalTest {
 	 * 
 	 * @param path the path to follow.
 	 */
-	private void sendEvent(String... path) {
+	private void sendEvent(SignalCounterPair... path) {
 		JsonObject obj = createUpdateMsg(1, path);
-		String last = path[path.length-1];
+		String last = path[path.length-1].signal;
 		Handler<Message<JsonObject>> handler = depUpdateHandlers.get("signals."+last+".value");
 		JsonObjectMessage msg = new JsonObjectMessage(true, "", obj);
 		handler.handle(msg);
@@ -430,14 +439,14 @@ public class SignalTest {
 	 *            methods as: {@code createUpdateMsg(1, "a", "b")}
 	 * @return
 	 */
-	private JsonObject createUpdateMsg(long value, String... ids) {
+	private JsonObject createUpdateMsg(long value, SignalCounterPair... ids) {
 		JsonObject obj = new JsonObject();
 		obj.putNumber("value", value);
-		SignalChain chain = new SignalChain(new SignalGraph(ids[0]));
+		SignalChain chain = new SignalChain(new SignalGraph(ids[0].signal), ids[0].counter);
 		if (ids.length > 1) {
 			for (int i=1; i<ids.length; i++) {
-				SignalGraph graph = new SignalGraph(ids[i]);
-				chain.chain(graph);
+				SignalGraph graph = new SignalGraph(ids[i].signal);
+				chain.chain(graph, ids[i].counter);
 			}
 		}
 		JsonObject chainObj = new JsonObject(chain.toJson());

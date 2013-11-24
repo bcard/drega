@@ -252,6 +252,19 @@ public class SignalGraphTest {
 		assertThat(allPaths).hasSize(2);
 	}
 	
+	@Test
+	public void testOrderOfPaths() {
+		SignalGraph g0 = new SignalGraph(id(0));
+		SignalGraph g1 = new SignalGraph(id(1), g0);
+		SignalGraph g2 = new SignalGraph(id(2), g1);
+		
+		List<SignalChain> allPaths = g2.allPaths();
+		SignalChain expected = new SignalChain(g0);
+		expected.chain(g1);
+		
+		assertEquals(expected, allPaths.get(0));
+	}
+	
 	private static String id(int value) {
 		return Integer.toString(value);
 	}
