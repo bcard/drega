@@ -104,6 +104,21 @@ public class SignalTest {
 	}
 	
 	@Test
+	public void testDoNotUpdateValueOnIncrementCommandWhenSignalHasDependencies() {
+		DependencyTrackerTest.putDependencies(config, "2", "3");
+		Signal signal = startSignal();
+		
+		setGraphForSignal("2", new SignalGraph("2"), 0);
+		setGraphForSignal("3", new SignalGraph("3"), 1);
+		
+		verify(eventBus).registerHandler(eq("signals."+ID+".increment"), stringCaptor.capture());
+		Message<String> mockMessage = mock(Message.class);
+		stringCaptor.getValue().handle(mockMessage);
+		
+		assertEquals(0, signal.value);
+	}
+	
+	@Test
 	public void testPublishUpdateOnIncrementCommand() {
 		startSignal();
 		

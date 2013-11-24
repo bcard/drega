@@ -144,7 +144,11 @@ public class Signal extends Verticle {
 
 		@Override
 		public void handle(Message<String> event) {
-			updateValue(value + 1, null);
+			if (!tracker.getGraph().getDependentSignals().isEmpty()) {
+				container.logger().info("Cannot increment a signal with dependencies");
+			} else {
+				updateValue(value + 1, null);
+			}
 		}
 	}
 
