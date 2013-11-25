@@ -18,6 +18,8 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 
 /**
  * A chain of different graphs. The chain is updated as events propagate through
@@ -38,6 +40,9 @@ public class SignalChain {
 	@JsonProperty
 	private final List<GraphAndCounter> entries = new LinkedList<>();
 
+	public SignalChain() {
+	}
+	
 	public SignalChain(SignalGraph head) {
 		entries.add(new GraphAndCounter(head.getId(), -1));
 	}
@@ -164,6 +169,10 @@ public class SignalChain {
 		}
 		return returnValue;
 	}
+	
+	public String getLast() {
+		return entries.get(entries.size()-1).id;
+	}
 
 	/**
 	 * Returns a JSON representation of this object. Use the
@@ -220,7 +229,15 @@ public class SignalChain {
 	
 	@Override
 	public String toString() {
-		return toList().toString();
+		Iterable<String> vals = Iterables.transform(toList(), new Function<String, String>() {
+			
+			public String apply(String val) {
+				SignalGraph graph = new SignalGraph(val);
+				int count = getEventCounterFor(graph);
+				return "["+val+","+Integer.toString(count)+"]";
+			}
+		});
+		return vals.toString();
 	}
 
 	@Override

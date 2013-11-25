@@ -268,7 +268,7 @@ public class Signal extends Verticle {
 			JsonObject obj = event.body();
 			Long newValue = obj.getLong("value");
 			SignalChain chain = SignalChain.fromJson(obj.getObject("chain").toString());
-			
+//			container.logger().info(chain.getLast()+"->"+id+" value:"+newValue+" chain:"+chain);
 			ChainValueMap valueMap;
 			if (lastValues.containsKey(symbol)) {
 				valueMap = lastValues.get(symbol);
@@ -300,7 +300,14 @@ public class Signal extends Verticle {
 
 					// just two values for now
 					Long result = operator.call(args[0], args[1]);
-					updateValue(result, chain);
+					SignalChain allUpdates = new SignalChain();
+					for (ChainValueMap map : lastValues.values()) {
+						for (Entry<String, Integer> entry : map.counterMap.entrySet()) {
+							allUpdates.chain(new SignalGraph(entry.getKey()), entry.getValue());
+						}
+					}
+					
+					updateValue(result, allUpdates);
 				}
 			}
 		}
@@ -348,6 +355,7 @@ public class Signal extends Verticle {
 					ChainValueMap map = entry.getValue();
 					Integer counter = map.get(collision);
 					if (counter == null) {
+//						container.logger().info("missing update from "+collision+" on signal "+depGraph);
 						// missing an update, this is a glitch!
 						returnValue = true;
 					} else {
@@ -359,6 +367,12 @@ public class Signal extends Verticle {
 							// counter must line up
 							int existing = counterMap.get(collision);
 							returnValue |= existing != counter;
+							if (returnValue) {
+//								container.logger().info(
+//										"counters differ for " + collision + ". counterMap:"
+//												+ Integer.valueOf(existing) + ", counter:"
+//												+ Integer.valueOf(counter)+", dependency:"+depGraph.getId());
+							}
 						}
 					}
 				}
