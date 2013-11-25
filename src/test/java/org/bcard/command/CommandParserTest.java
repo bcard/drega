@@ -138,6 +138,16 @@ public class CommandParserTest {
 		assertThat(parse("unblock x"), instanceOf(BlockSignal.class));
 	}
 	
+	@Test
+	public void testGlitch() {
+		assertThat(parse("glitch x"), instanceOf(GlitchSignal.class));
+	}
+	
+	@Test
+	public void testNoGlitch() {
+		assertThat(parse("noglitch x"), instanceOf(GlitchSignal.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {

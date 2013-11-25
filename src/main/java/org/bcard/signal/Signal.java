@@ -32,7 +32,10 @@ import org.vertx.java.platform.Verticle;
  * current {@link SignalGraph} in serialized JSON form
  * <li><b>.block</b> Boolean message, blocks the current signal from sending any
  * more value updates. Dependency graph updates are still sent. Set the message
- * to {@code true} to block this signal, {@code false} to unblock it
+ * to {@code true} to block this signal, {@code false} to unblock it.
+ * <li><b>.glitchAvoidance</b> Boolean message, enables or disables glitch
+ * avoidance. Set the message body to {@code true} to enable glitch avoidance.
+ * Set to {@code false} to disable glitch avoidance.
  * </ul>
  * 
  * @author bcard
@@ -62,6 +65,11 @@ public class Signal extends Verticle {
 	 * least matching value) for a signal.
 	 */
 	private int eventCounter = 0;
+	
+	/**
+	 * A flag that's used to enable or disable glitch avoidance.
+	 */
+	private boolean glitchAvoidanceEnabled = true;
 	
 	private ResendHandler resendHandler;
 
@@ -110,6 +118,7 @@ public class Signal extends Verticle {
 		GraphHandler grapher = new GraphHandler("signals." + id + ".sendGraph");
 		BlockHandler blocker = new BlockHandler("signals." + id + ".block");
 		resendHandler = new ResendHandler("signals."+id+".get");
+		GlitchAvoidanceHandler glitchHandler = new GlitchAvoidanceHandler("signals."+id+".glitchAvoidance");
 
 		incrementer.apply(vertx.eventBus());
 		printer.apply(vertx.eventBus());
@@ -117,6 +126,7 @@ public class Signal extends Verticle {
 		printGraph.apply(vertx.eventBus());
 		blocker.apply(vertx.eventBus());
 		resendHandler.apply(vertx.eventBus());
+		glitchHandler.apply(vertx.eventBus());
 		resendHandler.setLastValue(value, null);
 	}
 
@@ -187,6 +197,20 @@ public class Signal extends Verticle {
 		@Override
 		public void handle(Message<Boolean> event) {
 			blocked = event.body();
+		}
+	}
+	
+	private class GlitchAvoidanceHandler extends HandlerApplicator<Boolean> {
+		
+		public GlitchAvoidanceHandler(String address) {
+			super(address);
+		}
+		
+		@Override
+		public void handle(Message<Boolean> event) {
+			String msg = event.body() ? "enabled" : "disabled";
+			container.logger().info("Glitch avoidance "+msg+" on "+id);
+			glitchAvoidanceEnabled = event.body();
 		}
 	}
 	
@@ -266,7 +290,7 @@ public class Signal extends Verticle {
 				// we should be clear to calculate the value if there
 				// are no glitches.
 				
-				if (!checkForGlitches(tracker.getGraph(), lastValues)) {
+				if (!glitchAvoidanceEnabled || !checkForGlitches(tracker.getGraph(), lastValues)) {
 					List<SignalGraph> graphs = tracker.getDependencies();
 					Long[] args = new Long[tracker.getNumberOfDependencies()];
 					for (int i = 0; i < tracker.getNumberOfDependencies(); i++) {

@@ -36,6 +36,10 @@ public class CommandParser {
 	
 	public static final String UNBLOCK = "unblock "+VARIABLE;
 	
+	public static final String GLITCH = "glitch "+VARIABLE;
+	
+	public static final String NOGLITCH = "noglitch "+VARIABLE;
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
 		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
@@ -68,6 +72,12 @@ public class CommandParser {
 		} else if (matches(COMBINE_SUBTRACTION, input)) {
 			String[] vals = input.split("[=-]");
 			command = new CombineSymbols(vals[0].trim(), vals[1].trim(), vals[2].trim(), CombineOperator.SUBTRACT);
+		} else if (matches(GLITCH, input)) {
+			String[] vals = input.split(" ");
+			command = new GlitchSignal(vals[1], false);
+		} else if (matches(NOGLITCH, input)) {
+			String[] vals = input.split(" ");
+			command = new GlitchSignal(vals[1], true);
 		}
 		
 		if (command == null) {

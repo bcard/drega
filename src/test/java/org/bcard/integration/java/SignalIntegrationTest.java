@@ -2,9 +2,12 @@ package org.bcard.integration.java;
 
 import static org.vertx.testtools.VertxAssert.testComplete;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.bcard.command.BlockSignal;
 import org.bcard.command.CombineSymbols;
 import org.bcard.command.CreateSignal;
+import org.bcard.command.GlitchSignal;
 import org.bcard.command.Increment;
 import org.bcard.command.MapSignal;
 import org.bcard.command.PrintGraph;
@@ -201,6 +204,47 @@ public class SignalIntegrationTest extends TestVerticle {
 
 		})));
 
+	}
+	
+	@Test
+	public void testDisableGlitchAvoidance() {
+		final AtomicBoolean oddValueFound = new AtomicBoolean(false);
+		createSignalX(thenMapYToX(thenZEqualsXPlusY(new Handler<AsyncResult<String>>() {
+
+			@Override
+			public void handle(AsyncResult<String> event) {
+				vertx.eventBus().registerHandler("signals.z.value", new Handler<Message<JsonObject>>() {
+
+					@Override
+					public void handle(Message<JsonObject> event) {
+						Long value = event.body().getLong("value");
+						if (value.equals(Long.valueOf(1)) || 
+							value.equals(Long.valueOf(3)) || 
+							value.equals(Long.valueOf(5))) {
+							oddValueFound.set(true);
+						}
+						
+						if (value.equals(Long.valueOf(6))) {
+							VertxAssert.assertTrue("No glitches detected", oddValueFound.get());
+							testComplete();
+						}
+					}
+				});
+				
+				GlitchSignal glitches = new GlitchSignal("z", false);
+				glitches.execute(container, vertx, new Handler<AsyncResult<String>>() {
+
+					@Override
+					public void handle(AsyncResult<String> event) {
+						// we will incremented x three times, z should have
+						// had the values 1, 3, or 5 since we are not avoiding 
+						// glitches
+						Increment increment = new Increment("x");
+						increment.execute(container, vertx,(thenIncrementX(thenIncrementX(new DummyHandler()))));
+					}
+				});
+				}
+		})));
 	}
 	
 	// --------------- Helper Methods ---------------- //
