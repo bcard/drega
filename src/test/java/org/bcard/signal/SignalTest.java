@@ -283,10 +283,10 @@ public class SignalTest {
 	@Test
 	public void testAfterInitializeUpdateFrom7ok() {
 		setupComplicatedSignal();
-		sendEvent(sc("7", 1), sc("2", 1));
-		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
-		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
-		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
+		// in the real world it's likely that we will only get
+		// a single update from each dependent signal like this
+		sendEvent(sc("6", 1), sc("1", 1), sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("5", 1), sc("3", 1));
 		
 		sendEvent(sc("7", 2), sc("2", 2));
 		sendEvent(sc("7", 3), sc("2", 3));
@@ -299,10 +299,8 @@ public class SignalTest {
 	@Test
 	public void testAfterInitializeUpdateFrom6NeedBlock() {
 		setupComplicatedSignal();
-		sendEvent(sc("7", 1), sc("2", 1));
-		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
-		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
-		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("5", 1), sc("3", 1));
 		
 		sendEvent(sc("6", 2), sc("1", 2), sc("2", 2));
 		assertNumberOfSentValues(1);
@@ -315,10 +313,8 @@ public class SignalTest {
 	@Test
 	public void testAfterInitializeNeedToKeepOrderStraight() {
 		setupComplicatedSignal();
-		sendEvent(sc("7", 1), sc("2", 1));
-		sendEvent(sc("6", 1), sc("1", 1), sc("3", 1));
-		sendEvent(sc("6", 1), sc("5", 1), sc("3", 1));
-		sendEvent(sc("6", 1), sc("1", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("7", 1), sc("2", 1));
+		sendEvent(sc("6", 1), sc("1", 1), sc("5", 1), sc("3", 1));
 		
 		sendEvent(sc("6", 2), sc("1", 2), sc("3", 2));
 		assertNumberOfSentValues(1);
@@ -411,6 +407,15 @@ public class SignalTest {
 		assertEquals(number, numEvents);
 	}
 	
+	/**
+	 * Some sugar to make it easier to setup our events. Creates a new
+	 * SignalCounterPair with the given {@code signal} as the ID and the
+	 * {@code counter} as the event counter value.
+	 * 
+	 * @param signal the id of the signal
+	 * @param counter the event counter for that signal
+	 * @return a SignalCounterPair
+	 */
 	private static SignalCounterPair sc(String signal, int counter) {
 		SignalCounterPair pair = new SignalCounterPair();
 		pair.signal = signal;
