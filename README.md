@@ -13,4 +13,5 @@ This project is built on top of [Vert.x](http://vertx.io/).  To run:
 * Install the 2.1M1 version of vertx and put the vertx executable on your
   path
 * Download this repository and compile using `mvn install`
-* cd into the target directory and run `vertx runmod `
+* cd into the target directory and run `vertx runmod org.bcard~drega~0.1`
+* Type `help` to get a list of available commands

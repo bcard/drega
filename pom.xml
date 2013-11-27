@@ -7,8 +7,8 @@
 	<artifactId>drega</artifactId>
 	<packaging>jar</packaging>
 	<version>0.1</version>
-	<name>Project - cs535-vertx-proj</name>
-	<url>http://maven.apache.org</url>
+	<name>drega</name>
+	<url>https://github.com/bcard/drega</url>
 
 	<parent>
 		<groupId>org.sonatype.oss</groupId>
@@ -322,4 +322,5 @@
 			</plugin>
 		</plugins>
 	</reporting>
+	<description>A project that implements glitch avoidance for distributed functional reactive signals</description>
 </project>
