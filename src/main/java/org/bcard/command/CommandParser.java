@@ -40,9 +40,13 @@ public class CommandParser {
 	
 	public static final String NOGLITCH = "noglitch "+VARIABLE;
 	
+	public static final String HELP = "help";
+	
 	public static ICommand parse(String input) {
 		ICommand command = null;
-		if (matches(ASSIGNMENT_WITH_VALUE, input)) {
+		if (matches(HELP, input)) {
+			command = new PrintHelp();
+		} else if (matches(ASSIGNMENT_WITH_VALUE, input)) {
 			String[] vals = input.split("=");
 			command = new CreateSignal(vals[0].trim(), Long.parseLong(vals[1].trim()));
 		} else if (matches(EXIT, input)) {

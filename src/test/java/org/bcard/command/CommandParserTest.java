@@ -148,6 +148,11 @@ public class CommandParserTest {
 		assertThat(parse("noglitch x"), instanceOf(GlitchSignal.class));
 	}
 	
+	@Test
+	public void testHelpCommand() {
+		assertThat(parse("help"), instanceOf(PrintHelp.class));
+	}
+	
 	/// ------------- Helper methods --------------- /// 
 	
 	private ICommand parse(String input) {
