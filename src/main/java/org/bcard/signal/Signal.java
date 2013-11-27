@@ -43,14 +43,31 @@ import org.vertx.java.platform.Verticle;
  */
 public class Signal extends Verticle {
 
+	/**
+	 * The current value tracked by this signal.
+	 */
 	/* protected for testing */long value;
 
+	/**
+	 * The ID of this signal
+	 */
 	private String id;
 
+	/**
+	 * A {@link DependencyTracker} that handles this signal's dependencies.
+	 */
 	private DependencyTracker tracker;
 
+	/**
+	 * Any values that this signal has received from other signals and the event
+	 * counters for their dependencies.
+	 */
 	private final Map<SignalGraph, ChainValueMap> lastValues = new HashMap<SignalGraph, ChainValueMap>();
 
+	/**
+	 * The {@link CombineOperator} to use to calculate the value to send. May be
+	 * {@code null} if this signal does not combine multiple values.
+	 */
 	private CombineOperator operator;
 
 	/**
@@ -58,19 +75,22 @@ public class Signal extends Verticle {
 	 * {@code true} if it is blocked {@code false} if it is not blocked.
 	 */
 	private boolean blocked = false;
-	
+
 	/**
-	 * An event counter that's sent out with event update.  This allows
-	 * dependency signals to know when they have the latest value (or at
-	 * least matching value) for a signal.
+	 * An event counter that's sent out with event update. This allows
+	 * dependency signals to know when they have the latest value (or at least
+	 * matching value) for a signal.
 	 */
 	private int eventCounter = 0;
-	
+
 	/**
 	 * A flag that's used to enable or disable glitch avoidance.
 	 */
 	private boolean glitchAvoidanceEnabled = true;
-	
+
+	/**
+	 * Used to respond to get requests from other signals.  Stores and resends the last value.
+	 */
 	private ResendHandler resendHandler;
 
 	@Override
@@ -82,7 +102,7 @@ public class Signal extends Verticle {
 		if (config.getField("initialValue") != null) {
 			value = config.getLong("initialValue");
 		}
-		
+
 		if (config.getField("operator") != null) {
 			String name = config.getString("operator");
 			operator = CombineOperator.valueOf(name);
@@ -90,35 +110,35 @@ public class Signal extends Verticle {
 
 		tracker = new DependencyTracker(id, config);
 		tracker.gatherDependencies(vertx.eventBus(), new DefaultFutureResult<Void>() {
-			
+
 			@Override
 			public DefaultFutureResult<Void> setResult(Void result) {
 				// now that all of our dependencies have been calculated we
 				// should be able to subscribe for updates
-				
+
 				for (SignalGraph dep : tracker.getDependencies()) {
-					DependencyUpdateHandler handler = new DependencyUpdateHandler(
-							"signals." + dep.getId() + ".value",
-							dep);
+					DependencyUpdateHandler handler = new DependencyUpdateHandler("signals." + dep.getId()
+							+ ".value", dep);
 					handler.apply(vertx.eventBus());
-					// request updates from our dependencies so we can have a good initial
-					// value
+					// request updates from our dependencies so we can have a
+					// good initial value
 					vertx.eventBus().send("signals." + dep.getId() + ".get", "");
 				}
-				
+
 				startedResult.setResult(result);
 				return this;
 			}
-			
+
 		});
-		
+
 		PrintHandler printer = new PrintHandler("signals." + id + ".print");
 		PrintGraphHandler printGraph = new PrintGraphHandler("signals." + id + ".print.graph");
 		IncrementHandler incrementer = new IncrementHandler("signals." + id + ".increment");
 		GraphHandler grapher = new GraphHandler("signals." + id + ".sendGraph");
 		BlockHandler blocker = new BlockHandler("signals." + id + ".block");
-		resendHandler = new ResendHandler("signals."+id+".get");
-		GlitchAvoidanceHandler glitchHandler = new GlitchAvoidanceHandler("signals."+id+".glitchAvoidance");
+		resendHandler = new ResendHandler("signals." + id + ".get");
+		GlitchAvoidanceHandler glitchHandler = new GlitchAvoidanceHandler("signals." + id
+				+ ".glitchAvoidance");
 
 		incrementer.apply(vertx.eventBus());
 		printer.apply(vertx.eventBus());
@@ -150,8 +170,7 @@ public class Signal extends Verticle {
 
 		@Override
 		public void handle(Message<String> event) {
-			container.logger().info(
-					"Dependency Graph for " + id + ":\n" + tracker.getGraph());
+			container.logger().info("Dependency Graph for " + id + ":\n" + tracker.getGraph());
 		}
 	}
 
@@ -187,7 +206,6 @@ public class Signal extends Verticle {
 		}
 	}
 
-
 	private class BlockHandler extends HandlerApplicator<Boolean> {
 
 		public BlockHandler(String address) {
@@ -196,29 +214,31 @@ public class Signal extends Verticle {
 
 		@Override
 		public void handle(Message<Boolean> event) {
+			String msg = event.body() ? "blocked" : "not blocked";
+			container.logger().info(id + " is " + msg);
 			blocked = event.body();
 		}
 	}
-	
+
 	private class GlitchAvoidanceHandler extends HandlerApplicator<Boolean> {
-		
+
 		public GlitchAvoidanceHandler(String address) {
 			super(address);
 		}
-		
+
 		@Override
 		public void handle(Message<Boolean> event) {
 			String msg = event.body() ? "enabled" : "disabled";
-			container.logger().info("Glitch avoidance "+msg+" on "+id);
+			container.logger().info("Glitch avoidance " + msg + " on " + id);
 			glitchAvoidanceEnabled = event.body();
 		}
 	}
-	
+
 	private class ResendHandler extends HandlerApplicator<String> {
 
 		private Long result;
 		private SignalChain chain;
-		
+
 		public ResendHandler(String address) {
 			super(address);
 		}
@@ -229,7 +249,7 @@ public class Signal extends Verticle {
 				updateValue(result, chain);
 			}
 		}
-		
+
 		/**
 		 * Sets the last value that was sent by this signal. If other signals
 		 * ask for a resend then this value and signal chain will be submitted.
@@ -243,18 +263,21 @@ public class Signal extends Verticle {
 			this.result = result;
 			this.chain = chain;
 		}
-		
+
 	}
-	
+
 	/**
 	 * Tracks update for a single dependency. This class will listen on a
 	 * dependency's publish channel for updates and record the values as they
-	 * are received.
+	 * are received. This class is where most of the glitch avoidance logic is
+	 * performed. The {@link SignalChain}s for the events are processed and
+	 * compared to the chains of other update to look for glitches. If a glitch
+	 * is detected and glitch avoidance is on then no updates are sent.
 	 * 
 	 * @author bcard
 	 * 
 	 */
-	/*protected for testing*/ class DependencyUpdateHandler extends HandlerApplicator<JsonObject> {
+	/* protected for testing */class DependencyUpdateHandler extends HandlerApplicator<JsonObject> {
 
 		private final SignalGraph symbol;
 
@@ -268,7 +291,8 @@ public class Signal extends Verticle {
 			JsonObject obj = event.body();
 			Long newValue = obj.getLong("value");
 			SignalChain chain = SignalChain.fromJson(obj.getObject("chain").toString());
-//			container.logger().info(chain.getLast()+"->"+id+" value:"+newValue+" chain:"+chain);
+			// enable this line to see the message passing output
+			// container.logger().info(chain.getLast()+"->"+id+" value:"+newValue+" chain:"+chain);
 			ChainValueMap valueMap;
 			if (lastValues.containsKey(symbol)) {
 				valueMap = lastValues.get(symbol);
@@ -276,7 +300,7 @@ public class Signal extends Verticle {
 				valueMap = new ChainValueMap();
 				lastValues.put(symbol, valueMap);
 			}
-			
+
 			valueMap.merge(chain);
 			valueMap.value = newValue;
 
@@ -289,7 +313,7 @@ public class Signal extends Verticle {
 				// we've received an update from each dependency so
 				// we should be clear to calculate the value if there
 				// are no glitches.
-				
+
 				if (!glitchAvoidanceEnabled || !checkForGlitches(tracker.getGraph(), lastValues)) {
 					List<SignalGraph> graphs = tracker.getDependencies();
 					Long[] args = new Long[tracker.getNumberOfDependencies()];
@@ -306,16 +330,16 @@ public class Signal extends Verticle {
 							allUpdates.chain(new SignalGraph(entry.getKey()), entry.getValue());
 						}
 					}
-					
+
 					updateValue(result, allUpdates);
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * Checks for glitches. Returns {@code true} if a glitch is detected,
-	 * {@code false} if there are no glitches and the values are ok to update
+	 * {@code false} if there are no glitches and the values are ok to update.
 	 * 
 	 * @param graph
 	 *            the dependency graph for this signal
@@ -330,17 +354,21 @@ public class Signal extends Verticle {
 		for (SignalChain chain1 : allPaths) {
 			for (SignalChain chain2 : allPaths) {
 				if (!chain1.equals(chain2) && !chain1.getConflicts(chain2).isEmpty()) {
-					// candidate for a collision, we still need to check to see if the _next_
+					// candidate for a collision, we still need to check to see
+					// if the _next_
 					// signal in the chain is different
 					collisions.addAll(chain1.getConflicts(chain2));
 				}
 			}
 		}
-		
-		// Need to track counters from each signal.  Once we have that then we should
-		// be able to take our conflicts, search through all of our chains that we've 
+
+		// Need to track counters from each signal. Once we have that then we
+		// should
+		// be able to take our conflicts, search through all of our chains that
+		// we've
 		// received and make sure that the numbers for the conflicts line up for
-		// all events.  If some number doesn't match, then we have an issue and need
+		// all events. If some number doesn't match, then we have an issue and
+		// need
 		// to hold off until other updates are received.
 
 		boolean returnValue = false;
@@ -355,7 +383,6 @@ public class Signal extends Verticle {
 					ChainValueMap map = entry.getValue();
 					Integer counter = map.get(collision);
 					if (counter == null) {
-//						container.logger().info("missing update from "+collision+" on signal "+depGraph);
 						// missing an update, this is a glitch!
 						returnValue = true;
 					} else {
@@ -367,18 +394,12 @@ public class Signal extends Verticle {
 							// counter must line up
 							int existing = counterMap.get(collision);
 							returnValue |= existing != counter;
-							if (returnValue) {
-//								container.logger().info(
-//										"counters differ for " + collision + ". counterMap:"
-//												+ Integer.valueOf(existing) + ", counter:"
-//												+ Integer.valueOf(counter)+", dependency:"+depGraph.getId());
-							}
 						}
 					}
 				}
 			}
 		}
-		
+
 		return returnValue;
 	}
 
@@ -388,6 +409,10 @@ public class Signal extends Verticle {
 	 * 
 	 * @param newValue
 	 *            the new value that this signal should represent
+	 * @param the
+	 *            list of current event counters known to this signal. This list
+	 *            is updated with the current signal's event counter before
+	 *            being published.
 	 */
 	private void updateValue(long newValue, SignalChain chain) {
 		value = newValue;
@@ -407,18 +432,33 @@ public class Signal extends Verticle {
 			resendHandler.setLastValue(value, chain);
 		}
 	}
-	
+
+	/**
+	 * A map that holds a signal's ID and the current event counter value.
+	 * 
+	 * @author bcard
+	 * 
+	 */
 	private class ChainValueMap {
-		
+
 		private Map<String, Integer> counterMap = new HashMap<>();
 		
+		private Long value;
+
+		/**
+		 * Merges in a {@link SignalChain} from a signal and stores the event
+		 * counters for that chain, updating any existing values as needed.
+		 * 
+		 * @param chain the {@link SignalChain} from an event
+		 */
 		public void merge(SignalChain chain) {
 			for (String signal : chain.toList()) {
 				Integer counter = chain.getEventCounterFor(new SignalGraph(signal));
 				if (!counterMap.containsKey(signal)) {
 					counterMap.put(signal, counter);
 				} else {
-					// TODO this is accounting for out of order signal updates, should be a 
+					// TODO this is accounting for out of order signal updates,
+					// should be a
 					// unit test for this.
 					Integer existing = counterMap.get(signal);
 					if (counter.compareTo(existing) > 0) {
@@ -427,12 +467,17 @@ public class Signal extends Verticle {
 				}
 			}
 		}
-		
+
+		/**
+		 * Returns the event counter for a signal
+		 * 
+		 * @param signal
+		 *            the ID of a signal
+		 * @return the event counter for that signal
+		 */
 		public Integer get(String signal) {
 			return counterMap.get(signal);
 		}
-		
-		private Long value;
 	}
 
 }

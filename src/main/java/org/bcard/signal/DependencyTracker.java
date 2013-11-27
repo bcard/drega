@@ -21,8 +21,14 @@ import org.vertx.java.core.json.JsonObject;
  */
 public class DependencyTracker {
 
+	/**
+	 * The graph for the signal this is monitoring.
+	 */
 	private SignalGraph graph;
 
+	/**
+	 * The dependencies that this signal has received graphs for.
+	 */
 	private SignalGraph[] discoveredDependencies;
 	
 	/**
@@ -30,6 +36,9 @@ public class DependencyTracker {
 	 */
 	private final String id;
 	
+	/**
+	 * The IDs of this signal's immediate dependencies.
+	 */
 	private final List<String> dependencies = new ArrayList<>();
 	
 	/**
@@ -155,6 +164,11 @@ public class DependencyTracker {
 		}
 	}
 	
+	/**
+	 * Returns the graphs of the immediate dependencies.
+	 * 
+	 * @return the graphs of the immediate dependencies
+	 */
 	public List<SignalGraph> getDependencies() {
 		return Arrays.asList(discoveredDependencies);
 	}

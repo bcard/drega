@@ -28,7 +28,7 @@ public interface ICommand {
 	 *            the vertx container
 	 * @param vertx
 	 *            the current vertx instance
-	 * @param a
+	 * @param done
 	 *            handler to call when the command in finished
 	 */
 	public void execute(Container container, Vertx vertx, Handler<AsyncResult<String>> done);

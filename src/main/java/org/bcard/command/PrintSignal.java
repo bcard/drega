@@ -6,6 +6,12 @@ import org.vertx.java.core.Vertx;
 import org.vertx.java.core.impl.DefaultFutureResult;
 import org.vertx.java.platform.Container;
 
+/**
+ * Tells a signal to print its current value.
+ * 
+ * @author bcard
+ *
+ */
 public class PrintSignal implements ICommand {
 	
 	private String id;

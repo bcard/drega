@@ -19,8 +19,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
- * Dependency graph for observables. This class allows us to find common
- * ancestors which can be used to avoid glitches.  This class is immutable.
+ * Dependency graph for signals. This class allows us to find common ancestors
+ * which can be used to avoid glitches. This class is immutable.
  * 
  * @author bcard
  * 
@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 public class SignalGraph {
 
 	@JsonProperty("dependencies")
-	List<SignalGraph> upstreamDependencies = new ArrayList<SignalGraph>();
+	List<SignalGraph> immediateDependencies = new ArrayList<SignalGraph>();
 
 	@JsonProperty
 	private final String id;
@@ -42,16 +42,16 @@ public class SignalGraph {
 	 * 
 	 * @param id
 	 *            the id of this graph
-	 * @param upstreamDependencies
+	 * @param immediateDependencies
 	 *            this graph's upstream dependencies.
 	 */
-	public SignalGraph(String id, SignalGraph... upstreamDependencies) {
+	public SignalGraph(String id, SignalGraph... immediateDependencies) {
 		this.id = id;
-		for (SignalGraph graph : upstreamDependencies) {
-			this.upstreamDependencies.add(graph);
+		for (SignalGraph graph : immediateDependencies) {
+			this.immediateDependencies.add(graph);
 		}
 	}
-	
+
 	/**
 	 * Returns every dependent path rooted at this graphs immediate dependency
 	 * down to their lowest dependency. Each chain will list signals in the
@@ -62,13 +62,21 @@ public class SignalGraph {
 	 */
 	public List<SignalChain> allPaths() {
 		List<SignalChain> returnValue = new ArrayList<>();
-		for (SignalGraph graph : upstreamDependencies) {
+		for (SignalGraph graph : immediateDependencies) {
 			returnValue.addAll(buildChainPathsRecursive(graph));
 		}
-		
+
 		return returnValue;
 	}
-	
+
+	/**
+	 * Helper method to recursively build the paths for the {@link #allPaths()}
+	 * function.
+	 * 
+	 * @param current
+	 *            the current graph
+	 * @return a list of dependencies for {@code current}
+	 */
 	private List<SignalChain> buildChainPathsRecursive(SignalGraph current) {
 		List<SignalChain> returnList = new ArrayList<>();
 		if (current.getDependentSignals().isEmpty()) {
@@ -84,7 +92,7 @@ public class SignalGraph {
 				}
 			}
 		}
-		return returnList; 
+		return returnList;
 	}
 
 	public String getId() {
@@ -101,7 +109,7 @@ public class SignalGraph {
 	 */
 	@JsonIgnore
 	public List<SignalGraph> getDependentSignals() {
-		return new ArrayList<SignalGraph>(upstreamDependencies);
+		return new ArrayList<SignalGraph>(immediateDependencies);
 	}
 
 	/**
@@ -117,7 +125,7 @@ public class SignalGraph {
 		if (id2.equals(id)) {
 			return true;
 		} else {
-			for (SignalGraph graph : upstreamDependencies) {
+			for (SignalGraph graph : immediateDependencies) {
 				boolean contains = graph.containsId(id2);
 				if (contains) {
 					return contains;
@@ -133,10 +141,7 @@ public class SignalGraph {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((id == null) ? 0 : id.hashCode());
-		result = prime
-				* result
-				+ ((upstreamDependencies == null) ? 0 : upstreamDependencies
-						.hashCode());
+		result = prime * result + ((immediateDependencies == null) ? 0 : immediateDependencies.hashCode());
 		return result;
 	}
 
@@ -154,17 +159,17 @@ public class SignalGraph {
 				return false;
 		} else if (!id.equals(other.id))
 			return false;
-		if (upstreamDependencies == null) {
-			if (other.upstreamDependencies != null)
+		if (immediateDependencies == null) {
+			if (other.immediateDependencies != null)
 				return false;
-		} else if (!upstreamDependencies.equals(other.upstreamDependencies))
+		} else if (!immediateDependencies.equals(other.immediateDependencies))
 			return false;
 		return true;
 	}
 
 	/**
 	 * Converts this graph to a JSON string. Use the {@link #fromJson(String)}
-	 * method to trun this string back into a {@link SignalGraph} object.
+	 * method to turn this string back into a {@link SignalGraph} object.
 	 * 
 	 * @return JSON representation of this object or an empty string if there
 	 *         was a problem with serialization
@@ -173,8 +178,7 @@ public class SignalGraph {
 		ObjectMapper mapper = new ObjectMapper();
 		String returnValue = "";
 		try {
-			returnValue = mapper.writer(new DefaultPrettyPrinter())
-					.writeValueAsString(this);
+			returnValue = mapper.writer(new DefaultPrettyPrinter()).writeValueAsString(this);
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
@@ -201,12 +205,12 @@ public class SignalGraph {
 
 		return null;
 	}
-	
+
 	@Override
 	public String toString() {
 		String json = toJson();
-		
-		// simplify the json further by removing control structures, 
+
+		// simplify the json further by removing control structures,
 		// we will infer this from the indentation
 		json = json.replace("{", " ");
 		json = json.replace("}", " ");
@@ -217,7 +221,7 @@ public class SignalGraph {
 		json = json.replace("  :", ":");
 		json = json.replaceAll("\n\\s+\n", "\n");
 		json = json.replaceAll("^\\s+\n", "");
-		
+
 		return json;
 	}
 
@@ -230,8 +234,7 @@ public class SignalGraph {
 	public static class Deserializer extends JsonDeserializer<SignalGraph> {
 
 		@Override
-		public SignalGraph deserialize(JsonParser parser,
-				DeserializationContext ctxt) throws IOException,
+		public SignalGraph deserialize(JsonParser parser, DeserializationContext ctxt) throws IOException,
 				JsonProcessingException {
 			ObjectCodec oc = parser.getCodec();
 			JsonNode node = oc.readTree(parser);
@@ -262,8 +265,7 @@ public class SignalGraph {
 				}
 			}
 
-			SignalGraph[] graphs = dependencies
-					.toArray(new SignalGraph[dependencies.size()]);
+			SignalGraph[] graphs = dependencies.toArray(new SignalGraph[dependencies.size()]);
 			SignalGraph returnValue = new SignalGraph(id, graphs);
 
 			return returnValue;
