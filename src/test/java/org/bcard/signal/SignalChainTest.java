@@ -68,7 +68,7 @@ public class SignalChainTest {
 	@Test
 	public void testEventCounter() {
 		SignalChain chainA = new SignalChain(a, 0);
-		assertEquals(0, chainA.getEventCounterFor(a));
+		assertEquals(0, chainA.getEventCounterFor(a.getId()));
 	}
 	
 	@Test
@@ -76,7 +76,7 @@ public class SignalChainTest {
 		SignalChain chainA = new SignalChain(a, 0);
 		chainA.chain(b, 2);
 		
-		assertEquals(2, chainA.getEventCounterFor(b));
+		assertEquals(2, chainA.getEventCounterFor(b.getId()));
 	}
 	
 	@Test
@@ -146,8 +146,8 @@ public class SignalChainTest {
 	public void testContainsWithSingleValue() {
 		SignalChain chainC = new SignalChain(c);
 		
-		assertTrue(chainC.contains(c));
-		assertFalse(chainC.contains(a));
+		assertTrue(chainC.contains(c.getId()));
+		assertFalse(chainC.contains(a.getId()));
 	}
 	
 	@Test
@@ -156,10 +156,10 @@ public class SignalChainTest {
 		chainC.chain(a);
 		chainC.chain(b);
 		
-		assertTrue(chainC.contains(c));
-		assertTrue(chainC.contains(a));
-		assertTrue(chainC.contains(b));
-		assertFalse(chainC.contains(d));
+		assertTrue(chainC.contains(c.getId()));
+		assertTrue(chainC.contains(a.getId()));
+		assertTrue(chainC.contains(b.getId()));
+		assertFalse(chainC.contains(d.getId()));
 	}
 
 }

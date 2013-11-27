@@ -453,7 +453,7 @@ public class Signal extends Verticle {
 		 */
 		public void merge(SignalChain chain) {
 			for (String signal : chain.toList()) {
-				Integer counter = chain.getEventCounterFor(new SignalGraph(signal));
+				Integer counter = chain.getEventCounterFor(signal);
 				if (!counterMap.containsKey(signal)) {
 					counterMap.put(signal, counter);
 				} else {
