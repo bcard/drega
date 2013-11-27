@@ -1,11 +1,13 @@
 {
 
   // Java verticle
-  "main":"org.bcard.Main",
+  "main":"org.bcard.drega.Main",
 
   // If your module is going to be registered in the Vert.x module registry you will also need the following
   // mandatory fields
   "description":"A project that implements glitch avoidance for distributed functional reactive signals",
   "licenses": ["The Apache Software License Version 2.0"],
-  "author": "Brian Card"
+  "author": "bcard",
+  "homepage": "https://github.com/bcard/drega",
+  "keywords": ["reactive", "functional", "Rx", "glitch"]
 }

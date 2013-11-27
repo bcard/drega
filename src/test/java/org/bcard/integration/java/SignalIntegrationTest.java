@@ -4,15 +4,15 @@ import static org.vertx.testtools.VertxAssert.testComplete;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.bcard.command.BlockSignal;
-import org.bcard.command.CombineSymbols;
-import org.bcard.command.CreateSignal;
-import org.bcard.command.GlitchSignal;
-import org.bcard.command.Increment;
-import org.bcard.command.MapSignal;
-import org.bcard.command.PrintGraph;
-import org.bcard.command.PrintSignal;
-import org.bcard.signal.CombineOperator;
+import org.bcard.drega.command.BlockSignal;
+import org.bcard.drega.command.CombineSymbols;
+import org.bcard.drega.command.CreateSignal;
+import org.bcard.drega.command.GlitchSignal;
+import org.bcard.drega.command.Increment;
+import org.bcard.drega.command.MapSignal;
+import org.bcard.drega.command.PrintGraph;
+import org.bcard.drega.command.PrintSignal;
+import org.bcard.drega.signal.CombineOperator;
 import org.junit.Test;
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.Handler;
